@@ -5,20 +5,25 @@ import { ArrowLeft, Upload, FileText, X } from "lucide-react"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
-import { Textarea } from "@/shared/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 import { Card } from "@/shared/components/ui/card"
-import { Progress } from "@/shared/components/ui/progress"
+import { useRagDocuments } from "@/features/rag/application/useRagDocuments"
+import {
+  RAG_DOCUMENT_TYPE_LABELS,
+  RAG_DOCUMENT_TYPES,
+  type RagDocumentType,
+} from "@/features/rag/domain/rag.types"
 
-const ALLOWED = [".pdf", ".txt", ".md", ".docx"]
-const MAX_MB = 25
+// Backend accepts a single PDF named `file`, max 20MB (rag.routes.js).
+const ALLOWED = [".pdf"]
+const MAX_MB = 20
 
 export function UploadRagDocument() {
   const navigate = useNavigate()
+  const { upload } = useRagDocuments()
   const [file, setFile] = React.useState<File | null>(null)
   const [title, setTitle] = React.useState("")
-  const [tags, setTags] = React.useState("")
-  const [description, setDescription] = React.useState("")
-  const [progress, setProgress] = React.useState(0)
+  const [type, setType] = React.useState<RagDocumentType>("cv_analysis")
   const [uploading, setUploading] = React.useState(false)
   const [drag, setDrag] = React.useState(false)
   const [error, setError] = React.useState("")
@@ -39,23 +44,19 @@ export function UploadRagDocument() {
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""))
   }
 
-  const upload = () => {
-    if (!file) { toast.error("Select a file first"); return }
+  const submit = async () => {
+    if (!file) { toast.error("Select a PDF file first"); return }
     if (!title.trim()) { toast.error("Title is required"); return }
     setUploading(true)
-    setProgress(0)
-    const t = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          clearInterval(t)
-          setUploading(false)
-          toast.success("Document uploaded — indexing started")
-          navigate("/rag-documents")
-          return 100
-        }
-        return p + 10
-      })
-    }, 150)
+    try {
+      await upload({ file, title: title.trim(), type })
+      toast.success("Document uploaded and indexed")
+      navigate("/rag-documents")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -66,15 +67,15 @@ export function UploadRagDocument() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Upload RAG Document</h1>
-          <p className="text-[var(--muted-foreground)]">Add a document to the AI knowledge base.</p>
+          <p className="text-[var(--muted-foreground)]">Add a PDF to the AI knowledge base. One active document per type.</p>
         </div>
       </div>
 
       <Card className="p-6 space-y-5">
         <div
-          onDragOver={e => { e.preventDefault(); setDrag(true) }}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
           onDragLeave={() => setDrag(false)}
-          onDrop={e => {
+          onDrop={(e) => {
             e.preventDefault()
             setDrag(false)
             onPick(e.dataTransfer.files?.[0])
@@ -97,19 +98,19 @@ export function UploadRagDocument() {
           ) : (
             <div className="space-y-3">
               <Upload className="w-10 h-10 mx-auto text-[var(--muted-foreground)]" />
-              <p>Drag and drop a file here, or</p>
+              <p>Drag and drop a PDF here, or</p>
               <label>
                 <input
                   type="file"
                   className="hidden"
-                  accept={ALLOWED.join(",")}
-                  onChange={e => onPick(e.target.files?.[0])}
+                  accept="application/pdf,.pdf"
+                  onChange={(e) => onPick(e.target.files?.[0])}
                 />
                 <span className="inline-block px-4 py-2 rounded-lg bg-[var(--primary)] text-white cursor-pointer text-sm font-medium">
                   Browse files
                 </span>
               </label>
-              <p className="text-xs text-[var(--muted-foreground)]">{ALLOWED.join(", ")} • max {MAX_MB}MB</p>
+              <p className="text-xs text-[var(--muted-foreground)]">PDF • max {MAX_MB}MB</p>
             </div>
           )}
         </div>
@@ -117,32 +118,24 @@ export function UploadRagDocument() {
 
         <div className="space-y-2">
           <Label>Title</Label>
-          <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Document title" />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" />
         </div>
 
         <div className="space-y-2">
-          <Label>Tags (comma-separated)</Label>
-          <Input value={tags} onChange={e => setTags(e.target.value)} placeholder="career, resume, interview" />
+          <Label>Type</Label>
+          <Select value={type} onValueChange={(v: RagDocumentType) => setType(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RAG_DOCUMENT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{RAG_DOCUMENT_TYPE_LABELS[t]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-
-        <div className="space-y-2">
-          <Label>Description</Label>
-          <Textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} />
-        </div>
-
-        {uploading && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Uploading...</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} />
-          </div>
-        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => navigate("/rag-documents")} disabled={uploading}>Cancel</Button>
-          <Button onClick={upload} disabled={uploading || !file}>
+          <Button onClick={submit} disabled={uploading || !file}>
             <Upload className="w-4 h-4 mr-2" />
             {uploading ? "Uploading..." : "Upload"}
           </Button>

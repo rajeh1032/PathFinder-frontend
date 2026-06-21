@@ -6,10 +6,11 @@
 | --- | --- | --- |
 | auth | `/api/v1/auth` | Login connected; admin role required |
 | users | `/api/v1/users` | UI currently demo-backed |
-| CV analyses | `/api/v1/cvs` | UI currently demo-backed |
+| skills | `/api/v1/skills` | Full admin CRUD: read (list + detail with usage counts), create (`POST`), update (`PATCH /:id`), delete (`DELETE /:id`, 409 when referenced) |
+| CV analyses | `/api/v1/cvs` | Admin list + detail connected (`GET /cvs`, `GET /cvs/:id`, admin-gated) |
 | RAG documents | `/api/v1/rag` | UI currently demo-backed |
 | roadmaps | `/api/v1/roadmaps` | UI currently demo-backed |
-| courses | `/api/v1/courses` | UI currently demo-backed |
+| courses | `/api/v1/courses` | Full admin management: read (list + detail), create via import wizard (preview/AI analysis/confirm), edit (`PATCH /:id`), delete (`DELETE /:id`) |
 | jobs | `/api/v1/jobs`, `/api/v1/job-matches` | UI currently demo-backed |
 | interviews | `/api/v1/interviews` | UI currently demo-backed |
 | cover letters | `/api/v1/cover-letters` | UI exists but is not routed yet |

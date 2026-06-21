@@ -1,100 +1,119 @@
 import React, { useMemo, useState } from "react"
-import { Upload, RefreshCw, Trash2, FileText, AlertTriangle, Search } from "lucide-react"
+import { Upload, RefreshCw, FileText, AlertTriangle, Search, Power } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
 import { Badge } from "@/shared/components/ui/badge"
-import { Progress } from "@/shared/components/ui/progress"
 import { Skeleton } from "@/shared/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
-import { ConfirmDeleteDialog, EmptyState, Field, FormModal, RowActions, useCrud } from "@/shared/components/crud"
-import { PermissionButton, usePermissions } from "@/shared/lib/permissions"
+import { ConfirmDeleteDialog, EmptyState, Field, FormModal, RowActions } from "@/shared/components/crud"
+import { PermissionButton } from "@/shared/lib/permissions"
+import { useRagDocuments } from "@/features/rag/application/useRagDocuments"
+import {
+  RAG_DOCUMENT_TYPE_LABELS,
+  RAG_DOCUMENT_TYPES,
+  type RagDocumentListItem,
+  type RagDocumentType,
+  type RagIndexStatus,
+} from "@/features/rag/domain/rag.types"
 
-type Status = "indexed" | "indexing" | "failed" | "queued"
-type Doc = {
-  id: string; title: string; type: "Career" | "Skill" | "Course" | "Interview" | "General"
-  size: string; chunks: number; vectorId: string; uploader: string; status: Status; progress: number; error?: string; createdAt: string
-}
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
-const initial: Doc[] = [
-  { id: "d1", title: "Frontend Career Guide v3.pdf", type: "Career", size: "2.3 MB", chunks: 84, vectorId: "vec_1f8a", uploader: "Sarah Admin", status: "indexed", progress: 100, createdAt: "2026-05-22" },
-  { id: "d2", title: "React Hooks Reference.md", type: "Skill", size: "412 KB", chunks: 42, vectorId: "vec_2c91", uploader: "Hala Said", status: "indexing", progress: 64, createdAt: "2026-05-29" },
-  { id: "d3", title: "Behavioral Interview Pack.pdf", type: "Interview", size: "1.1 MB", chunks: 56, vectorId: "vec_4d22", uploader: "John Doe", status: "indexed", progress: 100, createdAt: "2026-05-12" },
-  { id: "d4", title: "AWS Solutions Architect Notes.pdf", type: "Course", size: "5.6 MB", chunks: 0, vectorId: "—", uploader: "Sarah Admin", status: "failed", progress: 0, error: "Embedding service timeout (Gemini)", createdAt: "2026-05-30" },
-  { id: "d5", title: "Resume Best Practices.docx", type: "General", size: "320 KB", chunks: 0, vectorId: "—", uploader: "Sarah Admin", status: "queued", progress: 0, createdAt: "2026-05-31" },
-]
-
-const statusBadge: Record<Status, { label: string; cls: string }> = {
+const statusBadge: Record<RagIndexStatus, { label: string; cls: string }> = {
   indexed: { label: "Indexed", cls: "bg-emerald-500/10 text-emerald-600" },
-  indexing: { label: "Indexing", cls: "bg-blue-500/10 text-blue-600" },
-  queued: { label: "Queued", cls: "bg-amber-500/10 text-amber-600" },
+  pending: { label: "Pending", cls: "bg-amber-500/10 text-amber-600" },
   failed: { label: "Failed", cls: "bg-red-500/10 text-red-600" },
 }
 
 export function RagDocuments() {
-  const { has } = usePermissions()
-  const c = useCrud<Doc>(initial)
+  const { items, isLoading, error, refetch, upload, remove, setActive } = useRagDocuments()
   const [q, setQ] = useState("")
   const [type, setType] = useState<string>("all")
-  const [skeleton, setSkeleton] = useState(false)
-  const [form, setForm] = useState({ title: "", type: "General" as Doc["type"], file: null as File | null })
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [form, setForm] = useState({ title: "", type: "cv_analysis" as RagDocumentType, file: null as File | null })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
 
-  const filtered = useMemo(() => c.items.filter(d => {
-    if (q && !d.title.toLowerCase().includes(q.toLowerCase())) return false
-    if (type !== "all" && d.type !== type) return false
-    return true
-  }), [c.items, q, type])
+  const [toDelete, setToDelete] = useState<RagDocumentListItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  const startCreate = () => { setForm({ title: "", type: "General", file: null }); setErrors({}); setUploadProgress(0); c.open("create") }
+  const [activatingId, setActivatingId] = useState<string | null>(null)
 
-  const submit = () => {
+  const filtered = useMemo(
+    () =>
+      items.filter((d) => {
+        if (q && !d.title.toLowerCase().includes(q.toLowerCase())) return false
+        if (type !== "all" && d.type !== type) return false
+        return true
+      }),
+    [items, q, type],
+  )
+
+  const startCreate = () => {
+    setForm({ title: "", type: "cv_analysis", file: null })
+    setErrors({})
+    setCreateOpen(true)
+  }
+
+  const submit = async () => {
     const e: Record<string, string> = {}
     if (!form.title.trim()) e.title = "Required"
-    if (!form.file) e.file = "Choose a file"
-    if (form.file && form.file.size > 20 * 1024 * 1024) e.file = "Max file size 20MB"
-    setErrors(e); if (Object.keys(e).length) return
-    setUploading(true); setUploadProgress(0)
-    const tick = setInterval(() => setUploadProgress(p => Math.min(100, p + 12)), 120)
-    setTimeout(() => {
-      clearInterval(tick); setUploadProgress(100); setUploading(false)
-      const newDoc: Doc = {
-        id: String(Date.now()), title: form.title, type: form.type,
-        size: `${(form.file!.size / 1024 / 1024).toFixed(1)} MB`, chunks: 0, vectorId: "—",
-        uploader: "You", status: "indexing", progress: 5, createdAt: new Date().toISOString().slice(0, 10),
-      }
-      c.setItems(p => [newDoc, ...p])
-      c.close(); toast.success("Document uploaded — indexing started")
-    }, 1100)
+    if (!form.file) e.file = "Choose a PDF file"
+    if (form.file && form.file.size > MAX_UPLOAD_BYTES) e.file = "Max file size 20MB"
+    setErrors(e)
+    if (Object.keys(e).length) return
+
+    setUploading(true)
+    try {
+      await upload({ file: form.file!, title: form.title.trim(), type: form.type })
+      setCreateOpen(false)
+      toast.success("Document uploaded and indexed")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const reindex = (d: Doc) => {
-    if (!has("rag.reindex")) return toast.error("No permission to re-index")
-    c.setItems(p => p.map(x => x.id === d.id ? { ...x, status: "indexing", progress: 10, error: undefined } : x))
-    toast.info(`Re-indexing "${d.title}"…`)
-    setTimeout(() => c.setItems(p => p.map(x => x.id === d.id ? { ...x, status: "indexed", progress: 100, chunks: 60, vectorId: `vec_${Math.random().toString(16).slice(2, 6)}` } : x)), 1500)
+  const confirmDelete = async () => {
+    if (!toDelete) return
+    setDeleting(true)
+    try {
+      await remove(toDelete.id)
+      toast.success("Document deactivated")
+      setToDelete(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    } finally {
+      setDeleting(false)
+    }
   }
 
-  const del = () => {
-    if (!c.selected) return
-    if (c.selected.status === "indexing") { toast.error("Cannot delete a document while it is indexing."); c.close(); return }
-    c.setItems(p => p.filter(x => x.id !== c.selected!.id))
-    c.close(); toast.success("Document deleted")
+  const activate = async (d: RagDocumentListItem) => {
+    setActivatingId(d.id)
+    try {
+      await setActive(d.id, true)
+      toast.success("Document activated")
+    } catch (err) {
+      // Backend returns 409 if another active document of this type exists.
+      toast.error(err instanceof Error ? err.message : "Activation failed")
+    } finally {
+      setActivatingId(null)
+    }
   }
-
-  const refreshSkeleton = () => { setSkeleton(true); setTimeout(() => setSkeleton(false), 800) }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">RAG Knowledge Base</h1>
-          <p className="text-[var(--muted-foreground)]">Documents indexed for AI retrieval (Gemini Embeddings).</p>
+          <p className="text-[var(--muted-foreground)]">Documents indexed for AI retrieval (Gemini embeddings).</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={refreshSkeleton}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button>
+          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />Refresh
+          </Button>
           <PermissionButton permission="rag.upload" onClick={startCreate}>
             <Upload className="h-4 w-4 mr-2" />Upload Document
           </PermissionButton>
@@ -105,30 +124,41 @@ export function RagDocuments() {
         <div className="p-4 border-b border-[var(--border)] flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[200px] max-w-sm relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
-            <Input placeholder="Search documents..." className="pl-9" value={q} onChange={e => setQ(e.target.value)} />
+            <Input placeholder="Search documents..." className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Type" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="Career">Career</SelectItem>
-              <SelectItem value="Skill">Skill</SelectItem>
-              <SelectItem value="Course">Course</SelectItem>
-              <SelectItem value="Interview">Interview</SelectItem>
-              <SelectItem value="General">General</SelectItem>
+              {RAG_DOCUMENT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{RAG_DOCUMENT_TYPE_LABELS[t]}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
-        {skeleton ? (
+        {isLoading ? (
           <div className="p-4 space-y-2">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+            <p className="font-semibold">Could not load documents</p>
+            <p className="text-sm text-[var(--muted-foreground)] mt-1 max-w-sm">{error}</p>
+            <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />Retry
+            </Button>
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={c.items.length === 0 ? "No documents yet" : "No results"}
-            description={c.items.length === 0 ? "Upload PDFs, Markdown, or DOCX files to power AI retrieval." : "Try a different search or filter."}
-            action={c.items.length === 0 && <PermissionButton permission="rag.upload" onClick={startCreate}><Upload className="h-4 w-4 mr-2" />Upload Document</PermissionButton>}
+            title={items.length === 0 ? "No documents yet" : "No results"}
+            description={items.length === 0 ? "Upload a PDF to power AI retrieval." : "Try a different search or filter."}
+            action={items.length === 0 && (
+              <PermissionButton permission="rag.upload" onClick={startCreate}><Upload className="h-4 w-4 mr-2" />Upload Document</PermissionButton>
+            )}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -138,43 +168,53 @@ export function RagDocuments() {
                   <th className="px-4 py-3">Title</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Vector ID</th>
+                  <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">Chunks</th>
-                  <th className="px-4 py-3">Uploaded by</th>
+                  <th className="px-4 py-3">Active</th>
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {filtered.map(d => (
-                  <tr key={d.id} className="hover:bg-[var(--muted)]/20">
+                {filtered.map((d) => (
+                  <tr key={d.id} className={`hover:bg-[var(--muted)]/20 ${d.isActive ? "" : "opacity-60"}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-[var(--muted-foreground)]" />
-                        <div>
-                          <p className="font-medium">{d.title}</p>
-                          <p className="text-xs text-[var(--muted-foreground)]">{d.size}</p>
-                        </div>
+                        <p className="font-medium">{d.title}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><Badge variant="secondary">{d.type}</Badge></td>
+                    <td className="px-4 py-3"><Badge variant="secondary">{RAG_DOCUMENT_TYPE_LABELS[d.type]}</Badge></td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${statusBadge[d.status].cls}`}>{statusBadge[d.status].label}</span>
-                      {d.status === "indexing" && <Progress value={d.progress} className="h-1 mt-1.5 w-32" />}
-                      {d.status === "failed" && d.error && (
-                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{d.error}</p>
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${statusBadge[d.indexStatus].cls}`}>
+                        {statusBadge[d.indexStatus].label}
+                      </span>
+                      {d.indexStatus === "failed" && d.indexError && (
+                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />{d.indexError}
+                        </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{d.vectorId}</td>
-                    <td className="px-4 py-3">{d.chunks}</td>
-                    <td className="px-4 py-3">{d.uploader}</td>
-                    <td className="px-4 py-3 text-[var(--muted-foreground)]">{d.createdAt}</td>
+                    <td className="px-4 py-3 capitalize text-[var(--muted-foreground)]">{d.source}</td>
+                    <td className="px-4 py-3">{d.chunksCount}</td>
+                    <td className="px-4 py-3">
+                      {d.isActive
+                        ? <span className="text-emerald-600 text-xs font-medium">Active</span>
+                        : <span className="text-[var(--muted-foreground)] text-xs">Inactive</span>}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--muted-foreground)]">{d.createdAt.slice(0, 10)}</td>
                     <td className="px-4 py-3">
                       <RowActions
-                        extra={[
-                          ...(has("rag.reindex") ? [{ label: "Re-index", onClick: () => reindex(d), icon: <RefreshCw className="h-4 w-4" /> }] : []),
-                        ]}
-                        onDelete={has("rag.delete") ? () => c.open("delete", d) : undefined}
+                        extra={
+                          d.isActive
+                            ? undefined
+                            : [{
+                                label: activatingId === d.id ? "Activating..." : "Activate",
+                                onClick: () => activate(d),
+                                icon: <Power className="h-4 w-4" />,
+                              }]
+                        }
+                        onDelete={d.isActive ? () => setToDelete(d) : undefined}
                       />
                     </td>
                   </tr>
@@ -186,41 +226,39 @@ export function RagDocuments() {
       </div>
 
       <FormModal
-        open={c.mode === "create"} onOpenChange={v => !v && c.close()}
-        title="Upload Document" submitLabel={uploading ? "Uploading..." : "Upload"}
-        onSubmit={submit} loading={uploading}
+        open={createOpen}
+        onOpenChange={(v) => !v && !uploading && setCreateOpen(false)}
+        title="Upload Document"
+        description="Only one active document is allowed per type. PDF only, up to 20MB."
+        submitLabel={uploading ? "Uploading..." : "Upload"}
+        onSubmit={submit}
+        loading={uploading}
       >
         <Field label="Title" error={errors.title}>
-          <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Frontend Career Guide" />
+          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. CV Analysis Rubric" />
         </Field>
         <Field label="Type">
-          <Select value={form.type} onValueChange={(v: Doc["type"]) => setForm({ ...form, type: v })}>
+          <Select value={form.type} onValueChange={(v: RagDocumentType) => setForm({ ...form, type: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Career">Career</SelectItem>
-              <SelectItem value="Skill">Skill</SelectItem>
-              <SelectItem value="Course">Course</SelectItem>
-              <SelectItem value="Interview">Interview</SelectItem>
-              <SelectItem value="General">General</SelectItem>
+              {RAG_DOCUMENT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{RAG_DOCUMENT_TYPE_LABELS[t]}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </Field>
-        <Field label="File" error={errors.file} hint="PDF, DOCX, or MD up to 20MB">
-          <Input type="file" accept=".pdf,.md,.docx,.txt" onChange={e => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
+        <Field label="File" error={errors.file} hint="PDF up to 20MB">
+          <Input type="file" accept="application/pdf,.pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
         </Field>
-        {uploading && (
-          <div className="space-y-1.5">
-            <p className="text-xs text-[var(--muted-foreground)]">Embedding progress</p>
-            <Progress value={uploadProgress} />
-          </div>
-        )}
       </FormModal>
 
       <ConfirmDeleteDialog
-        open={c.mode === "delete"} onOpenChange={v => !v && c.close()}
-        title={`Delete "${c.selected?.title}"?`}
-        description="The document and its vector embeddings will be removed from the knowledge base."
-        onConfirm={del}
+        open={!!toDelete}
+        onOpenChange={(v) => !v && !deleting && setToDelete(null)}
+        title={`Deactivate "${toDelete?.title}"?`}
+        description="The document will be marked inactive and removed from AI retrieval. You can upload a replacement for this type afterwards."
+        onConfirm={confirmDelete}
+        loading={deleting}
       />
     </div>
   )

@@ -96,7 +96,8 @@ route files). All paths are relative to `env.apiBaseUrl` (`/api/v1`) except chat
 | --- | --- |
 | `auth` | `register`, `login`, `me`, `profile`, `changePassword` |
 | `users` | `list`, `me`, `byId`, `activate`, `deactivate` |
-| `cvs` | `analyze`, `latestAnalysis`, `status` |
+| `skills` | `root`, `byId` |
+| `cvs` | `analyze`, `latestAnalysis`, `status`, `list`, `byId` |
 | `rag` | `documents`, `upload`, `byId` |
 | `roadmaps` | `generate`, `me`, `byId`, `stepProgress` |
 | `courses` | `root`, `importPreview`, `importConfirm`, `recommended`, `saved`, `enrollments`, `byId`, `save`, `enroll`, `enrollment` |
@@ -107,9 +108,13 @@ route files). All paths are relative to `env.apiBaseUrl` (`/api/v1`) except chat
 | `chat` | `sessions`, `sendMessage`, `sessionMessages`, `deleteSession` (use `baseUrl: chatApiBaseUrl`) |
 
 Admin-only backend routes (require `authorize('admin')`): `users.activate`,
-`users.deactivate`, `users.byId` (PATCH), `courses.importPreview`,
-`courses.importConfirm`, `interviews.adminSessions`, `interviews.adminSessionById`.
-Only `auth.login` is currently consumed by a data layer.
+`users.deactivate`, `users.byId` (PATCH), `skills.root` (POST), `skills.byId`
+(PATCH/DELETE), `cvs.list`, `cvs.byId`,
+`courses.importPreview`, `courses.importConfirm`, `interviews.adminSessions`,
+`interviews.adminSessionById`.
+The CV admin read endpoints (`GET /cvs`, `GET /cvs/:id`) were added to the
+backend `cvs` module and join `cv_analyses -> cvs -> users`; they are consumed
+by the `cv-analyses` data layer.
 
 ## Response envelope and meta
 

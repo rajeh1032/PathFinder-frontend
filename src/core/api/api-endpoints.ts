@@ -31,10 +31,20 @@ export const apiEndpoints = {
   dashboard: {
     overview: "/dashboard/overview",
   },
+  skills: {
+    // `GET /skills` (authenticate, paginated) and `POST /skills` (admin).
+    root: "/skills",
+    // `GET /:id` (authenticate, returns usage counts), `PATCH /:id` (admin),
+    // `DELETE /:id` (admin).
+    byId: (id: string) => `/skills/${id}`,
+  },
   cvs: {
     analyze: "/cvs/analyze",
     latestAnalysis: "/cvs/me/latest-analysis",
     status: "/cvs/me/status",
+    // Admin-only (require `authorize('admin')` on the backend).
+    list: "/cvs",
+    byId: (id: string) => `/cvs/${id}`,
   },
   rag: {
     documents: "/rag/documents",
@@ -55,6 +65,7 @@ export const apiEndpoints = {
     recommended: "/courses/recommended",
     saved: "/courses/saved",
     enrollments: "/courses/enrollments",
+    // `byId` is used for GET (read), PATCH (admin update), and DELETE (admin).
     byId: (id: string) => `/courses/${id}`,
     save: (id: string) => `/courses/${id}/save`,
     enroll: (id: string) => `/courses/${id}/enroll`,

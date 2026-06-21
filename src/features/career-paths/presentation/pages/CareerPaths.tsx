@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { Plus, Search, Briefcase, Users, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
@@ -7,7 +7,10 @@ import { Textarea } from "@/shared/components/ui/textarea"
 import { Badge } from "@/shared/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { Switch } from "@/shared/components/ui/switch"
-import { FormModal, DetailsModal, ConfirmDeleteDialog, RowActions, EmptyState, Field, useCrud } from "@/shared/components/crud"
+import { FormModal, DetailsModal, ConfirmDeleteDialog, RowActions, Field, useCrud } from "@/shared/components/crud"
+import { DataState } from "@/shared/components/custom"
+import { useCareerPaths } from "../../application/useCareerPaths"
+import type { CareerPathListItem } from "../../domain/career-paths.types"
 
 type RequiredSkill = { skill_name: string; required_level: "Beginner" | "Intermediate" | "Advanced"; priority: "Low" | "Medium" | "High" }
 
@@ -24,47 +27,32 @@ type CareerPath = {
   created_at: string
 }
 
-const initial: CareerPath[] = [
-  {
-    id: "1", title: "Frontend Developer", description: "Build modern web interfaces using React, TypeScript and CSS.", category: "Engineering",
-    average_salary: "$75,000 – $120,000", difficulty_level: "Intermediate", is_active: true,
-    required_skills: [
-      { skill_name: "React", required_level: "Intermediate", priority: "High" },
-      { skill_name: "TypeScript", required_level: "Intermediate", priority: "High" },
-      { skill_name: "CSS", required_level: "Beginner", priority: "Medium" },
-    ],
-    followers: 3240, created_at: "2024-01-15",
-  },
-  {
-    id: "2", title: "Data Scientist", description: "Extract insights from large datasets using Python and ML.", category: "Data",
-    average_salary: "$90,000 – $150,000", difficulty_level: "Advanced", is_active: true,
-    required_skills: [
-      { skill_name: "Python", required_level: "Advanced", priority: "High" },
-      { skill_name: "SQL", required_level: "Intermediate", priority: "High" },
-    ],
-    followers: 2150, created_at: "2024-01-20",
-  },
-  {
-    id: "3", title: "UX Designer", description: "Design intuitive and accessible digital experiences.", category: "Design",
-    average_salary: "$65,000 – $110,000", difficulty_level: "Intermediate", is_active: true,
-    required_skills: [
-      { skill_name: "Figma", required_level: "Intermediate", priority: "High" },
-      { skill_name: "User Research", required_level: "Beginner", priority: "Medium" },
-    ],
-    followers: 1890, created_at: "2024-02-01",
-  },
-  {
-    id: "4", title: "DevOps Engineer", description: "Automate infrastructure and build reliable CI/CD pipelines.", category: "Engineering",
-    average_salary: "$85,000 – $140,000", difficulty_level: "Advanced", is_active: false,
-    required_skills: [
-      { skill_name: "Docker", required_level: "Advanced", priority: "High" },
-      { skill_name: "AWS", required_level: "Intermediate", priority: "High" },
-    ],
-    followers: 1450, created_at: "2024-02-10",
-  },
-]
-
 type FormState = Omit<CareerPath, "id" | "followers" | "created_at">
+
+/**
+ * Map the backend list item (`id`, `title`, `category`, `difficulty_level`)
+ * into the richer local view model. Fields the backend does not expose yet
+ * (description, salary, required skills, followers) default to empty values.
+ * The backend list endpoint only returns active paths, so `is_active` is true.
+ */
+function toLocal(item: CareerPathListItem): CareerPath {
+  const difficulty = (["Beginner", "Intermediate", "Advanced", "Expert"].includes(item.difficulty_level)
+    ? item.difficulty_level
+    : "Intermediate") as CareerPath["difficulty_level"]
+  return {
+    id: item.id,
+    title: item.title,
+    description: "",
+    category: item.category,
+    average_salary: "",
+    difficulty_level: difficulty,
+    is_active: true,
+    required_skills: [],
+    followers: 0,
+    created_at: "—",
+  }
+}
+
 const emptySkill: RequiredSkill = { skill_name: "", required_level: "Beginner", priority: "Medium" }
 const emptyForm: FormState = {
   title: "", description: "", category: "Engineering",
@@ -76,11 +64,18 @@ const difficultyVariant: Record<string, "default" | "secondary" | "warning" | "s
 }
 
 export function CareerPaths() {
-  const c = useCrud<CareerPath>(initial)
+  const { items: remoteItems, isLoading, error, refetch } = useCareerPaths()
+  const c = useCrud<CareerPath>([])
   const [q, setQ] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All")
   const [form, setForm] = useState<FormState>(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Seed the local working copy from the backend list whenever it changes.
+  useEffect(() => {
+    c.setItems(remoteItems.map(toLocal))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteItems])
 
   const categories = ["All", ...Array.from(new Set(c.items.map(p => p.category)))]
 
@@ -144,7 +139,7 @@ export function CareerPaths() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Career Paths</h1>
-          <p className="text-[var(--muted-foreground)]">Manage the career path catalog for students.</p>
+          <p className="text-[var(--muted-foreground)]">Active career path catalog from the backend. Create, edit and delete are local previews until admin endpoints exist.</p>
         </div>
         <Button onClick={startCreate}><Plus className="mr-2 h-4 w-4" />New Career Path</Button>
       </div>
@@ -166,9 +161,19 @@ export function CareerPaths() {
           </Button>
         </div>
 
-        {filtered.length === 0 ? (
-          <EmptyState title="No career paths found" description={q || categoryFilter !== "All" ? "Try a different search or filter." : "Create your first career path."} action={!q && categoryFilter === "All" && <Button onClick={startCreate}><Plus className="mr-2 h-4 w-4" />New Career Path</Button>} />
-        ) : (
+        <DataState
+          isLoading={isLoading}
+          error={error}
+          onRetry={refetch}
+          isEmpty={filtered.length === 0}
+          loadingLabel="Loading career paths..."
+          empty={{
+            title: "No career paths found",
+            description: q || categoryFilter !== "All"
+              ? "Try a different search or filter."
+              : "No active career paths in the catalog yet.",
+          }}
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -210,7 +215,7 @@ export function CareerPaths() {
               ))}
             </TableBody>
           </Table>
-        )}
+        </DataState>
       </div>
 
       {/* Create / Edit Modal */}
