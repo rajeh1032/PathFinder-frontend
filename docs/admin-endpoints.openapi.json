@@ -1,0 +1,477 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PathFinder Admin API",
+    "version": "1.0.0",
+    "description": "Admin-only, read-only endpoints added to PathFinder-Backend to power the admin console Overview (Dashboard) and Users screens. Every response uses the standard envelope { success, message, data, meta? }. No database schema changes were introduced."
+  },
+  "servers": [
+    { "url": "https://pathfinder-backend-mwlr.onrender.com/api/v1", "description": "Render deployment" },
+    { "url": "http://localhost:5000/api/v1", "description": "Local development" }
+  ],
+  "tags": [
+    { "name": "Dashboard", "description": "Aggregated admin metrics for the Overview screen." },
+    { "name": "Users", "description": "Admin user management and per-user statistics." }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/dashboard/overview": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Get dashboard overview",
+        "description": "Returns KPI counts, top career paths, top skills, and trend series. Requires an admin JWT.",
+        "operationId": "getDashboardOverview",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Dashboard overview fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/DashboardOverview" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "message": "Dashboard overview fetched successfully",
+                  "data": {
+                    "kpis": {
+                      "totalUsers": 19,
+                      "totalCvs": 14,
+                      "totalCvAnalyses": 11,
+                      "totalCareerPaths": 3,
+                      "totalSkills": 20,
+                      "totalCourses": 6,
+                      "totalJobs": 36,
+                      "totalJobMatches": 134,
+                      "totalInterviews": 76,
+                      "totalRagDocuments": 15,
+                      "aiTokensUsed": 764866,
+                      "aiEstimatedCost": 0.01
+                    },
+                    "topCareerPaths": [
+                      { "name": "Frontend Developer", "count": 7 },
+                      { "name": "Backend Developer", "count": 6 }
+                    ],
+                    "topSkills": [
+                      { "name": "Git", "count": 4 },
+                      { "name": "JavaScript", "count": 3 },
+                      { "name": "Firebase", "count": 3 },
+                      { "name": "Node.js", "count": 2 },
+                      { "name": "REST APIs", "count": 2 }
+                    ],
+                    "trends": {
+                      "userGrowth": [
+                        { "name": "Jan", "users": 0 },
+                        { "name": "Feb", "users": 0 },
+                        { "name": "Mar", "users": 0 },
+                        { "name": "Apr", "users": 0 },
+                        { "name": "May", "users": 0 },
+                        { "name": "Jun", "users": 19 }
+                      ],
+                      "cvAnalyses": [
+                        { "name": "Mon", "count": 0 },
+                        { "name": "Tue", "count": 0 },
+                        { "name": "Wed", "count": 0 },
+                        { "name": "Thu", "count": 0 },
+                        { "name": "Fri", "count": 0 },
+                        { "name": "Sat", "count": 0 },
+                        { "name": "Sun", "count": 0 }
+                      ],
+                      "jobMatches": [
+                        { "name": "W1", "count": 0 },
+                        { "name": "W2", "count": 0 },
+                        { "name": "W3", "count": 0 },
+                        { "name": "W4", "count": 0 },
+                        { "name": "W5", "count": 0 },
+                        { "name": "W6", "count": 0 }
+                      ],
+                      "aiUsage": [
+                        { "name": "W1", "tokens": 0 },
+                        { "name": "W2", "tokens": 0 },
+                        { "name": "W3", "tokens": 0 },
+                        { "name": "W4", "tokens": 0 },
+                        { "name": "W5", "tokens": 0 },
+                        { "name": "W6", "tokens": 0 }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "description": "Paginated list of users with their profile and role. Existing endpoint reused by the admin Users table.",
+        "operationId": "listUsers",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1, "minimum": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 } },
+          { "name": "search", "in": "query", "description": "Matches name or email.", "schema": { "type": "string" } },
+          { "name": "role", "in": "query", "description": "Role name filter.", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["active", "inactive"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "users": { "type": "array", "items": { "$ref": "#/components/schemas/User" } }
+                          }
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": { "pagination": { "$ref": "#/components/schemas/Pagination" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user by id",
+        "description": "Returns a single user plus joined profile. Existing endpoint reused by the UserDetails profile tab.",
+        "operationId": "getUserById",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "User fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "user": { "$ref": "#/components/schemas/User" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/users/{id}/stats": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user stats",
+        "description": "Per-user aggregated counts and AI usage summary. Requires an admin JWT. Powers the UserDetails tab counts.",
+        "operationId": "getUserStats",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "User stats fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/UserStats" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "message": "User stats fetched successfully",
+                  "data": {
+                    "counts": {
+                      "skills": 1,
+                      "cvs": 0,
+                      "cvAnalyses": 0,
+                      "roadmaps": 0,
+                      "jobMatches": 0,
+                      "interviews": 11,
+                      "coverLetters": 0,
+                      "chatSessions": 1
+                    },
+                    "aiUsage": { "tokensUsed": 26830, "cost": 0, "calls": 6 }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Backend-issued access token. Must decode to role 'admin'."
+      }
+    },
+    "schemas": {
+      "SuccessEnvelope": {
+        "type": "object",
+        "required": ["success", "message"],
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string" },
+          "data": {},
+          "meta": { "type": "object", "nullable": true }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["success", "message", "statusCode"],
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "statusCode": { "type": "integer" },
+          "message": { "type": "string" },
+          "details": { "type": "object", "nullable": true }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 20 },
+          "totalItems": { "type": "integer", "example": 19 },
+          "totalPages": { "type": "integer", "example": 1 },
+          "hasNextPage": { "type": "boolean" },
+          "hasPreviousPage": { "type": "boolean" },
+          "nextPage": { "type": "integer", "nullable": true },
+          "previousPage": { "type": "integer", "nullable": true }
+        }
+      },
+      "NamedCount": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "count": { "type": "integer" }
+        }
+      },
+      "DashboardKpis": {
+        "type": "object",
+        "properties": {
+          "totalUsers": { "type": "integer" },
+          "totalCvs": { "type": "integer" },
+          "totalCvAnalyses": { "type": "integer" },
+          "totalCareerPaths": { "type": "integer" },
+          "totalSkills": { "type": "integer" },
+          "totalCourses": { "type": "integer" },
+          "totalJobs": { "type": "integer" },
+          "totalJobMatches": { "type": "integer" },
+          "totalInterviews": { "type": "integer" },
+          "totalRagDocuments": { "type": "integer" },
+          "aiTokensUsed": { "type": "integer" },
+          "aiEstimatedCost": { "type": "number", "format": "float" }
+        }
+      },
+      "DashboardTrends": {
+        "type": "object",
+        "properties": {
+          "userGrowth": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "description": "Month label" },
+                "users": { "type": "integer" }
+              }
+            }
+          },
+          "cvAnalyses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "description": "Weekday label" },
+                "count": { "type": "integer" }
+              }
+            }
+          },
+          "jobMatches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "description": "Week label W1..W6" },
+                "count": { "type": "integer" }
+              }
+            }
+          },
+          "aiUsage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "description": "Week label W1..W6" },
+                "tokens": { "type": "integer" }
+              }
+            }
+          }
+        }
+      },
+      "DashboardOverview": {
+        "type": "object",
+        "properties": {
+          "kpis": { "$ref": "#/components/schemas/DashboardKpis" },
+          "topCareerPaths": { "type": "array", "items": { "$ref": "#/components/schemas/NamedCount" } },
+          "topSkills": { "type": "array", "items": { "$ref": "#/components/schemas/NamedCount" } },
+          "trends": { "$ref": "#/components/schemas/DashboardTrends" }
+        }
+      },
+      "UserStats": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "type": "object",
+            "properties": {
+              "skills": { "type": "integer" },
+              "cvs": { "type": "integer" },
+              "cvAnalyses": { "type": "integer" },
+              "roadmaps": { "type": "integer" },
+              "jobMatches": { "type": "integer" },
+              "interviews": { "type": "integer" },
+              "coverLetters": { "type": "integer" },
+              "chatSessions": { "type": "integer" }
+            }
+          },
+          "aiUsage": {
+            "type": "object",
+            "properties": {
+              "tokensUsed": { "type": "integer" },
+              "cost": { "type": "number", "format": "float" },
+              "calls": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "is_active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_login_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_active_at": { "type": "string", "format": "date-time", "nullable": true },
+          "role": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string" }
+            }
+          },
+          "profile": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "user_id": { "type": "string", "format": "uuid" },
+              "university": { "type": "string", "nullable": true },
+              "major": { "type": "string", "nullable": true },
+              "location": { "type": "string", "nullable": true },
+              "headline": { "type": "string", "nullable": true },
+              "bio": { "type": "string", "nullable": true },
+              "avatar_url": { "type": "string", "nullable": true },
+              "education_level": { "type": "object", "nullable": true },
+              "experience_year": { "type": "object", "nullable": true },
+              "current_status": { "type": "object", "nullable": true },
+              "career_paths": { "type": "object", "nullable": true }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad request",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": { "success": false, "statusCode": 400, "message": "User id is required" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid token",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": { "success": false, "statusCode": 401, "message": "Invalid or expired token" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not an admin",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": { "success": false, "statusCode": 403, "message": "Forbidden resource" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": { "success": false, "statusCode": 404, "message": "User not found" }
+          }
+        }
+      }
+    }
+  }
+}

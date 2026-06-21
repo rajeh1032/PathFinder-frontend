@@ -1,0 +1,550 @@
+{
+  "project": "PathFinder AI Admin Dashboard",
+  "purpose": "Internal admin panel for operating the PathFinder AI student platform — manage users, careers, content, AI features, jobs, and observability.",
+  "stack": {
+    "framework": "React 18 + TypeScript + Vite",
+    "router": "react-router v7 (createBrowserRouter)",
+    "styling": "Tailwind CSS v4 with CSS custom properties (Inter font, primary #6366f1, match #2dd4bf)",
+    "ui_primitives": "shadcn-style (Radix UI) under src/app/components/ui/",
+    "icons": "lucide-react",
+    "charts": "recharts",
+    "toasts": "sonner",
+    "theme": "Light + dark mode via 'dark' class on <html>"
+  },
+  "shared_infrastructure": {
+    "AdminLayout": {
+      "file": "src/app/components/AdminLayout.tsx",
+      "wraps": ["PermissionsProvider", "MaintenanceBanner", "RateLimitBanner", "Sidebar", "TopBar", "Outlet", "SessionExpiredModal"],
+      "globals": "window.__sessionExpired() and window.__rateLimit(true) for demo triggers"
+    },
+    "Sidebar": {
+      "file": "src/app/components/Sidebar.tsx",
+      "sections": ["Dashboard", "User Management", "Career Management", "Content Management", "Jobs", "AI Tools", "System"],
+      "features": ["Permission-filtered items", "Demo role switcher (Super Admin / Content Manager / Support / Analyst / Moderator)", "Active route highlighting"]
+    },
+    "TopBar": {
+      "file": "src/app/components/TopBar.tsx",
+      "features": ["Global search box", "Notifications bell with unread badge → /notifications", "Theme toggle (light/dark)", "Avatar dropdown: Profile / Settings / Logout"]
+    },
+    "PermissionsProvider": {
+      "file": "src/app/lib/permissions.tsx",
+      "exports": ["PermissionsProvider", "usePermissions()", "PermissionGate", "ProtectedRoute", "PermissionButton"],
+      "permissions": [
+        "users.view/create/update/delete",
+        "admins.view/invite/update/delete",
+        "roles.view/manage",
+        "career-paths.manage", "skills.manage", "courses.manage", "roadmaps.manage",
+        "jobs.view/manage", "job-matches.view", "api-sources.manage",
+        "ai.view/manage",
+        "rag.view/upload/delete/reindex",
+        "videos.view/upload/update/delete/publish/unpublish",
+        "activity.view", "settings.manage", "exports.run", "imports.run",
+        "*"
+      ],
+      "roles": {
+        "Super Admin": "*",
+        "Content Manager": "career/skills/courses/roadmaps/videos/jobs/rag manage + exports/imports",
+        "Support": "users.view/update + ai.view + activity.view",
+        "Analyst": "users.view + ai.view + activity.view + exports + rag.view",
+        "Moderator": "users.view + jobs.view + videos.view/update"
+      }
+    },
+    "CRUD primitives": {
+      "file": "src/app/components/crud.tsx",
+      "exports": ["FormModal", "DetailsModal", "ConfirmDeleteDialog", "RowActions", "EmptyState", "Field", "useCrud<T>"]
+    },
+    "CSV utilities": {
+      "file": "src/app/lib/csv.ts",
+      "exports": ["exportCsv(filename, rows)", "parseCsv<T>(text, requiredCols)"]
+    },
+    "Banners": {
+      "MaintenanceBanner": "Top-of-page warning, dismissable",
+      "RateLimitBanner": "Shown when AI is throttled, with retry",
+      "SessionExpiredModal": "Forces re-login when triggered"
+    }
+  },
+  "screens": [
+    {
+      "route": "/login",
+      "name": "Admin Login",
+      "file": "src/app/pages/AdminLogin.tsx",
+      "purpose": "Authenticate admins into the dashboard.",
+      "contains": [
+        "Email field",
+        "Password field with show/hide toggle",
+        "Remember me checkbox",
+        "Submit button with loading state",
+        "Inline validation errors",
+        "Forgot password link"
+      ]
+    },
+
+    {
+      "route": "/",
+      "name": "Dashboard / Overview",
+      "file": "src/app/pages/Dashboard.tsx",
+      "purpose": "At-a-glance health and growth metrics for the platform.",
+      "contains": [
+        "Header with date range badge + Sync Jobs action",
+        "14 PathFinder KPI cards: Total students, Active students (7d), CVs uploaded, CV analyses completed, Average CV score, Roadmaps generated, Job matches created, Avg match %, Interview sessions, Cover letters, AI token usage, Failed AI requests, RAG documents indexed",
+        "Job API sync status panel (Adzuna / JSearch / Remotive with health + last sync)",
+        "User Growth area chart",
+        "CV Analysis Volume bar chart (this week)",
+        "Recent AI Errors list",
+        "Recent Activity list"
+      ]
+    },
+
+    {
+      "route": "/analytics",
+      "name": "Analytics",
+      "file": "src/app/pages/Analytics.tsx",
+      "purpose": "Deeper trend exploration across the platform.",
+      "contains": [
+        "Date range chips (7/30 days)",
+        "Export CSV action",
+        "Trend line / area / bar / pie charts",
+        "Top lists",
+        "KPI summary cards"
+      ]
+    },
+
+    {
+      "route": "/ai-cost",
+      "name": "AI Cost & Token Usage",
+      "file": "src/app/pages/AiCost.tsx",
+      "permission": "ai.view",
+      "purpose": "Track Gemini token spend and reliability.",
+      "contains": [
+        "Tokens today, tokens this month, estimated cost, avg response time KPIs",
+        "Most used feature, most expensive feature, failed AI requests (24h)",
+        "Monthly budget progress bar with near-limit + over-budget warning banners",
+        "14-day token usage line chart",
+        "Cost by feature bar chart",
+        "Export CSV action"
+      ]
+    },
+
+    {
+      "route": "/api-health",
+      "name": "API Health",
+      "file": "src/app/pages/ApiHealth.tsx",
+      "purpose": "Monitor external integrations.",
+      "contains": [
+        "Per-service cards: Gemini API, Gemini Embeddings, Adzuna, JSearch, Remotive",
+        "Status badges (healthy/degraded/down)",
+        "Last successful sync, last failed sync, error message",
+        "Retry connection button (simulated)"
+      ]
+    },
+
+    {
+      "route": "/users",
+      "name": "Users",
+      "file": "src/app/pages/UsersList.tsx",
+      "permission": "users.view",
+      "purpose": "List and manage student accounts.",
+      "contains": [
+        "Search by name/email",
+        "Add user modal with validation (name, email format, career, location)",
+        "Edit user modal",
+        "View profile modal",
+        "Delete confirmation",
+        "Row actions: View, Edit, Open full profile (→ /users/:id), Delete",
+        "Export Users CSV (permission-gated)",
+        "Empty state + no-results state"
+      ]
+    },
+
+    {
+      "route": "/users/:id",
+      "name": "User Details",
+      "file": "src/app/pages/UserDetails.tsx",
+      "permission": "users.view",
+      "purpose": "Full single-user profile across all platform features.",
+      "contains": [
+        "Header card with avatar, name, status badge, email, title, country, joined date",
+        "13 tabs: Overview, Profile, Skills, CVs, CV Analyses, Roadmaps, Job Matches, Interviews, Cover Letters, Chat Sessions, AI Usage, Admin Notes, Activity",
+        "Overview KPI cards (CV score, roadmaps, matches, interviews, chats, tokens)",
+        "Profile field rows (read-only)",
+        "Skills as level-tagged badges",
+        "CV file table",
+        "CV Analysis history table",
+        "Roadmap progress table",
+        "Job match score table",
+        "Interview score table",
+        "Cover letters table",
+        "Chat sessions table",
+        "AI usage by feature table",
+        "Admin notes textarea + save",
+        "Activity timeline"
+      ]
+    },
+
+    {
+      "route": "/admins",
+      "name": "Admins Management",
+      "file": "src/app/pages/AdminsManagement.tsx",
+      "permission": "admins.view",
+      "purpose": "Invite and manage staff with admin access.",
+      "contains": [
+        "Invite admin modal (email + role)",
+        "Edit role action",
+        "Activate / deactivate toggle",
+        "Delete confirmation",
+        "Search + role filter",
+        "Empty state"
+      ]
+    },
+
+    {
+      "route": "/roles",
+      "name": "Roles & Permissions",
+      "file": "src/app/pages/RolesPermissions.tsx",
+      "permission": "roles.view",
+      "purpose": "Configure access levels.",
+      "contains": [
+        "Role cards grid with user count + permission badges",
+        "Create / edit role modal with permissions input",
+        "Delete confirmation guarded when role has assigned users",
+        "Super Admin role is protected (cannot edit / delete)",
+        "Empty state"
+      ]
+    },
+
+    {
+      "route": "/career-paths",
+      "name": "Career Paths",
+      "file": "src/app/pages/CareerPaths.tsx",
+      "purpose": "Define career trajectories students can follow.",
+      "contains": [
+        "Create / edit modal",
+        "Details view modal",
+        "Delete confirmation",
+        "Search + category filter",
+        "Publish toggle",
+        "Empty state"
+      ]
+    },
+
+    {
+      "route": "/skills",
+      "name": "Skills Management",
+      "file": "src/app/pages/SkillsManagement.tsx",
+      "purpose": "Catalog of skills used across paths/courses.",
+      "contains": [
+        "Search filter",
+        "Add / edit skill modal (name, category, level)",
+        "Delete confirmation",
+        "Import Skills CSV (file picker)",
+        "Empty state"
+      ]
+    },
+
+    {
+      "route": "/courses",
+      "name": "Courses",
+      "file": "src/app/pages/Courses.tsx",
+      "purpose": "Curated learning courses mapped to careers.",
+      "contains": [
+        "Create / edit course modal",
+        "Details view",
+        "Delete confirmation",
+        "Publish / unpublish toggle",
+        "Search + category filter",
+        "Import Courses CSV"
+      ]
+    },
+
+    {
+      "route": "/roadmaps",
+      "name": "Roadmaps",
+      "file": "src/app/pages/Roadmaps.tsx",
+      "purpose": "Step-by-step learning roadmaps.",
+      "contains": [
+        "Dynamic step list with add/remove",
+        "Per-step status",
+        "Publish/unpublish toggle",
+        "Create / edit modal",
+        "Delete confirmation",
+        "Empty state"
+      ]
+    },
+
+    {
+      "route": "/videos",
+      "name": "Learning Videos",
+      "file": "src/app/pages/Videos.tsx",
+      "permission": "videos.view",
+      "purpose": "Manage educational videos linked to careers, skills, courses, roadmap steps, and interview / CV / AI guidance topics.",
+      "contains": [
+        "7 analytics cards: total videos, published, drafts, failed uploads, top skill, top career, storage used",
+        "Storage-limit warning banner (toggleable)",
+        "Search by title or tag",
+        "Category filter (Career Path, Skill, Course, Roadmap Step, Interview Prep, CV Improvement, AI Career Guidance)",
+        "Status filter (draft, uploading, processing, published, private, failed)",
+        "Video table columns: Thumbnail, Title, Category, Skill, Career, Course, Duration, Status, Visibility, Uploader, Created, Actions",
+        "Upload modal with: drag-and-drop area, file picker (MP4/MOV/WebM up to 500MB), title, description, category, related skill/career/course/roadmap-step selectors, visibility (Public/Private/Draft), thumbnail upload, tags, save-as-draft + publish buttons",
+        "Upload UI states: idle, uploading (progress %), paused, processing, success, failed, retry, cancel",
+        "Slow-network indicator",
+        "Validation: missing title, missing category, duplicate title, unsupported format, file too large, missing related-content warning",
+        "Row actions: View details, Edit, Copy URL, Publish/Unpublish, Retry upload (failed), Delete",
+        "Permission-gated actions (videos.upload/update/delete/publish/unpublish)",
+        "Details drawer with embedded video player, all metadata fields, tag chips",
+        "Delete confirmation with extra warning when linked to an active course",
+        "Empty state (no videos vs no search results)"
+      ]
+    },
+
+    {
+      "route": "/rag-documents",
+      "name": "RAG Knowledge Base",
+      "file": "src/app/pages/RagDocuments.tsx",
+      "permission": "rag.view",
+      "purpose": "Documents indexed for AI retrieval (Gemini Embeddings).",
+      "contains": [
+        "Documents table: Title, Type, Status, Vector ID, Chunks, Uploaded by, Created date",
+        "Document type filter (Career, Skill, Course, Interview, General)",
+        "Search box",
+        "Upload document modal (PDF/MD/DOCX/TXT up to 20MB) with embedding progress bar",
+        "Indexing status badges: indexed, indexing (with progress), queued, failed (with error message)",
+        "Re-index action (permission-gated)",
+        "Delete action with guard against deleting while indexing",
+        "Loading skeleton on refresh",
+        "Empty state for no documents vs filtered no-results"
+      ]
+    },
+
+    {
+      "route": "/jobs",
+      "name": "Jobs List",
+      "file": "src/app/pages/JobsList.tsx",
+      "permission": "jobs.view",
+      "purpose": "Manage job listings and external API syncs.",
+      "contains": [
+        "Search by title/company",
+        "Source + status filters",
+        "Sync APIs action with spinner (partial-failure aware)",
+        "Add Job manually modal with validation",
+        "Edit / view / delete actions",
+        "Close / reopen status toggle",
+        "Export Jobs CSV",
+        "Import Jobs CSV"
+      ]
+    },
+
+    {
+      "route": "/job-matches",
+      "name": "Job Matches",
+      "file": "src/app/pages/JobMatches.tsx",
+      "permission": "job-matches.view",
+      "purpose": "Inspect AI-generated user → job matches.",
+      "contains": [
+        "Match score chips per row",
+        "Recompute action",
+        "Notify user action",
+        "View details modal",
+        "Filters by score range / status"
+      ]
+    },
+
+    {
+      "route": "/api-sources",
+      "name": "API Sources",
+      "file": "src/app/pages/ApiSources.tsx",
+      "purpose": "External integrations powering jobs and AI.",
+      "contains": [
+        "Create / edit source modal",
+        "Test connection action",
+        "Sync action with spinner",
+        "Enable / disable toggle",
+        "Delete confirmation, blocked when source is active and supplying jobs"
+      ]
+    },
+
+    {
+      "route": "/cv-analyses",
+      "name": "CV Analyses",
+      "file": "src/app/pages/CvAnalyses.tsx",
+      "permission": "ai.view",
+      "purpose": "AI-driven CV scoring and feedback history.",
+      "contains": [
+        "Search by user / ID",
+        "Status filter (Completed / Processing / Failed)",
+        "Export CSV",
+        "Row actions: View, Retry (failed), Delete",
+        "Rich details modal: CV preview pane, parsed text section, score with breakdown (Format/Skills/Impact/Match), Strengths, Weaknesses, Detected skills, Missing skills, Suggestions, Download original CV, Mark as reviewed",
+        "AI-failed state with inline retry"
+      ]
+    },
+
+    {
+      "route": "/chat-sessions",
+      "name": "Chat Sessions",
+      "file": "src/app/pages/ChatSessions.tsx",
+      "permission": "ai.view",
+      "purpose": "Inspect AI career chat conversations.",
+      "contains": [
+        "Session list with filters",
+        "View transcript modal",
+        "End active session action",
+        "Delete confirmation"
+      ]
+    },
+
+    {
+      "route": "/interview-sessions",
+      "name": "Interview Sessions",
+      "file": "src/app/pages/InterviewSessions.tsx",
+      "permission": "ai.view",
+      "purpose": "Mock-interview session records.",
+      "contains": [
+        "Session list with filters",
+        "Score display",
+        "View / replay action",
+        "Delete confirmation"
+      ]
+    },
+
+    {
+      "route": "/cover-letters",
+      "name": "Cover Letters",
+      "file": "src/app/pages/CoverLetters.tsx",
+      "permission": "ai.view",
+      "purpose": "AI-generated cover letters per user/job.",
+      "contains": [
+        "Create / edit modal",
+        "View modal",
+        "Download action",
+        "Delete confirmation",
+        "Search filter"
+      ]
+    },
+
+    {
+      "route": "/ai-logs",
+      "name": "AI Logs",
+      "file": "src/app/pages/AiLogs.tsx",
+      "permission": "ai.view",
+      "purpose": "Per-request AI observability.",
+      "contains": [
+        "Summary KPI strip (Requests today, Tokens today, Avg latency, …)",
+        "Search by feature/model/ID",
+        "Status badges (ok / warn / error)",
+        "View details modal with request/response/error",
+        "Clear all (destructive confirm)",
+        "Export CSV"
+      ]
+    },
+
+    {
+      "route": "/activity-logs",
+      "name": "Activity / Audit Logs",
+      "file": "src/app/pages/ActivityLogs.tsx",
+      "permission": "activity.view",
+      "purpose": "Audit trail of every admin action.",
+      "contains": [
+        "Table columns: Admin, Action, Module, Target type, Target ID, IP address, Created date",
+        "Filters: search, admin, module, action, date range (from/to)",
+        "Detail drawer showing old_data and new_data JSON diff",
+        "Export CSV action (permission-gated)",
+        "Empty state when filters return nothing"
+      ]
+    },
+
+    {
+      "route": "/settings",
+      "name": "System Settings",
+      "file": "src/app/pages/SystemSettings.tsx",
+      "purpose": "Platform configuration with safe-save semantics.",
+      "contains": [
+        "7 tabs: General, Appearance, AI Models, Notifications, Security, Email, Data & Backups",
+        "Dirty-state tracking with 'Unsaved changes' badge",
+        "Discard + Save buttons (disabled when clean)",
+        "Restore defaults",
+        "General: app name, support email, locale, timezone",
+        "Appearance: theme (light/dark/system), density, primary color",
+        "AI Models: model dropdowns, monthly token budget",
+        "Notifications: channel toggles",
+        "Security: session timeout (5–1440 min validation), API key rotation modal",
+        "Email: SMTP config, send test email (simulated 80% success)",
+        "Data & Backups: retention days (min 7), auto backup with time, manual backup, export data, purge old logs (destructive confirm)"
+      ]
+    },
+
+    {
+      "route": "/profile",
+      "name": "Profile",
+      "file": "src/app/pages/Profile.tsx",
+      "purpose": "Current admin's own account.",
+      "contains": [
+        "Personal info form (name/email/title/phone/bio/timezone/language) with validation",
+        "Avatar upload (max 2MB; PNG/JPG/WebP) with size + mime errors",
+        "Change Password modal (current/next/confirm; min 8 chars, uppercase, number)",
+        "2FA badge",
+        "Active Sessions list with current marker, per-session revoke, and revoke-all",
+        "Danger Zone: delete account requiring exact email confirmation"
+      ]
+    },
+
+    {
+      "route": "/notifications",
+      "name": "Notifications",
+      "file": "src/app/pages/Notifications.tsx",
+      "purpose": "In-app notification inbox + preferences.",
+      "contains": [
+        "Header with unread count badge",
+        "Search + filter chips (All / Unread / User / Job / AI / System)",
+        "Severity-colored items (info / success / warning / error)",
+        "Type icons (user / job / ai / system / message)",
+        "Mark single read, mark all read (no-op toast when 0)",
+        "Delete single (confirm dialog), clear all (confirm dialog)",
+        "Empty state (no data vs filtered to nothing)",
+        "Preferences table with email + push toggles for newUsers / aiErrors / sourceDown / weeklyDigest events",
+        "Save Preferences button"
+      ]
+    },
+
+    {
+      "route": "/no-permission",
+      "name": "No Permission",
+      "file": "src/app/pages/NoPermission.tsx",
+      "purpose": "Hard fallback when a route is blocked by RBAC.",
+      "contains": [
+        "Shield icon",
+        "Friendly explanation",
+        "Go back + Return to dashboard buttons"
+      ]
+    }
+  ],
+
+  "cross_cutting_edge_cases": [
+    "Form validation with per-field error messages",
+    "Loading states on async actions (simulated with setTimeout)",
+    "Empty states with contextual copy and primary action",
+    "No-search-results state distinct from no-data state",
+    "Destructive confirm dialogs for delete/clear/purge",
+    "Permission-denied disabled buttons with tooltip",
+    "Hard route guard via ProtectedRoute → /no-permission",
+    "Role guard: cannot edit/delete Super Admin",
+    "Cannot delete an active API source supplying jobs",
+    "Cannot delete a RAG document while it is indexing",
+    "CSV import row-level validation errors",
+    "API sync partial failure feedback",
+    "AI token budget near-limit + exceeded states",
+    "Rate limit exceeded global banner",
+    "Maintenance mode global banner",
+    "Session expired modal forcing re-login",
+    "Toast feedback (success/error/info) on every mutation",
+    "File upload validation (size + mime type) for CVs, avatars, videos, RAG docs",
+    "Password strength validation",
+    "Typed confirmation for irreversible destructive actions",
+    "Dirty-state detection on settings + discard option",
+    "Unread badge in TopBar bell"
+  ],
+
+  "import_export_matrix": {
+    "exports": ["users.csv", "jobs.csv", "ai-logs.csv", "ai-usage.csv", "activity-logs.csv", "cv-analyses.csv", "analytics-summary.csv"],
+    "imports": ["skills CSV", "courses CSV", "jobs CSV"]
+  }
+}
