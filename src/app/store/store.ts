@@ -8,6 +8,8 @@ import { cvAnalysesReducer } from "@/features/cv-analyses/application/cv-analyse
 import { coursesReducer } from "@/features/courses/application/courses.slice"
 import { skillsReducer } from "@/features/skills/application/skills.slice"
 import { interviewsReducer } from "@/features/interviews/application/interviews.slice"
+import { aiLogsReducer } from "@/features/ai-operations/application/ai-logs.slice"
+import { settingsReducer } from "@/features/settings/application/settings.slice"
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +22,8 @@ export const store = configureStore({
     courses: coursesReducer,
     skills: skillsReducer,
     interviews: interviewsReducer,
+    aiLogs: aiLogsReducer,
+    settings: settingsReducer,
   },
 })
 
