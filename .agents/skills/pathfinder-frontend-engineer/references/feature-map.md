@@ -18,8 +18,8 @@ All routes except `/login` render inside `ProtectedRoute` + `AdminLayout`.
 | `/skills` | `SkillsManagement` | skills | Real (admin CRUD wired) |
 | `/courses` | `Courses` | courses | Real (admin list/detail wired) |
 | `/roadmaps` | `Roadmaps` | roadmaps | Demo data |
-| `/jobs` | `JobsList` | jobs | Demo data |
-| `/job-matches` | `JobMatches` | jobs | Demo data |
+| `/jobs` | `JobsList` | jobs | Real (read list wired) |
+| `/job-matches` | `JobMatches` | jobs | Real (admin cross-user read wired) |
 | `/cv-analyses` | `CvAnalyses` | cv-analyses | Real (admin list wired) |
 | `/cv-analyses/:id` | `CvAnalysisDetails` | cv-analyses | Real (admin detail wired) |
 | `/interview-sessions` | `InterviewSessions` | interviews | Demo data |
@@ -41,7 +41,7 @@ All routes except `/login` render inside `ProtectedRoute` + `AdminLayout`.
 | `skills` | data, domain, application, presentation | `SkillsManagement` | Yes | `/api/v1/skills` | Full admin management wired to the real backend. The backend `skills` module was implemented (route -> controller -> service -> repository -> Joi schema) and mounted in `server.js`. Read: list (`GET /skills`, paginated, `q`/`category`/`level`/`isActive`/`sort` server-side) + detail (`GET /skills/:id`, returns usage counts) via `skillsApi` + `skills.slice` + `useSkills`. Write (admin): create (`POST /skills`), update (`PATCH /skills/:id`), delete (`DELETE /skills/:id`). Maps `skills` table (`aliases` is `text[]`, converted to/from a comma string in the form). Delete returns 409 when the skill is still referenced (deactivate instead). |
 | `courses` | data, domain, application, presentation | `Courses` | Yes | `/api/v1/courses` | Full admin management wired to the real backend. Read: list (`GET /courses`, paginated, `q`/`sort` server-side) + detail via `coursesApi` + `courses.slice` + `useCourses`. Create: MaharaTech import wizard (`POST /courses/import/preview` -> AI analysis review -> `POST /courses/import/confirm`) via `useCourseImport` + `ImportCourseDialog`. Edit: `PATCH /courses/:id` (admin) via `EditCourseDialog`. Delete: `DELETE /courses/:id` (admin, DB cascades dependents) via `ConfirmDeleteDialog`. List/detail return only `is_active=true` AND `analysis_status='approved'` rows. |
 | `roadmaps` | presentation | `Roadmaps` | Yes | `/api/v1/roadmaps` | Demo data; backend roadmaps are user-scoped, admin views unconfirmed. |
-| `jobs` | presentation | `JobsList`, `JobMatches` | Yes | `/api/v1/jobs`, `/api/v1/job-matches` | Demo data. Backend `jobs`/`jobMatches` modules are empty scaffolds. |
+| `jobs` | data, domain, application, presentation | `JobsList`, `JobMatches` | Yes | `/api/v1/jobs`, `/api/v1/job-matches` | `JobsList` read is wired to the real backend `GET /jobs` (public, paginated; `data` is the jobs array + `meta.pagination`) via `jobsApi` + `jobs.slice` + `useJobs`. Maps the real `jobs` table (`status` is `draft`/`published`/`archived`, `required_skills` is `text[]`). The backend exposes NO admin create/update/delete for jobs, so the page's add/edit/delete/toggle stay in-session local only. `JobMatches` is wired to a new admin cross-user endpoint added to the backend `jobMatches` module: `GET /job-matches/admin` (and `/admin/:id`), gated by `authenticate` + `authorize('admin')`, joining `job_matches -> users!inner(id,name,email)` and `jobs(...)`. Consumed via `jobMatchesApi` + `jobMatches.slice` + `useJobMatches`; the User column shows each match's owning user. The original user-scoped routes (`GET /job-matches`, `POST /generate`, `GET /:id`) are unchanged. "Recompute" re-queries the admin list (no cross-user regenerate exists); notify/remove stay local. |
 | `cv-analyses` | data, domain, application, presentation | `CvAnalyses`, `CvAnalysisDetails` | Yes | `/api/v1/cvs` | Wired to the real backend admin read endpoints. List (`GET /cvs`) and detail (`GET /cvs/:id`) are admin-gated (`authenticate` + `authorize('admin')`), joining `cv_analyses -> cvs -> users`. Read-only: no admin create/update/delete/reprocess endpoint exists, so the old delete/retry/CSV-of-mock actions were removed (CSV export now exports real rows). The user-scoped `analyze`/`me/latest-analysis`/`me/status` routes remain unused by admin. |
 | `interviews` | presentation | `InterviewSessions`, `InterviewDetails` | Yes | `/api/v1/interviews` | Demo data; admin session listing unconfirmed. |
 | `ai-operations` | presentation | `AiLogs`, `AiCost`, `ChatSessions` | `AiLogs` only | AI logs/chat (unconfirmed) | Demo data; `AiCost` and `ChatSessions` not routed. |
@@ -87,7 +87,11 @@ backend route files. Data layers currently consume: `auth.login`
 (`features/career-paths/data/career-paths.api.ts`, read-only list),
 `courses.root`/`courses.byId` (`features/courses/data/courses.api.ts`,
 read-only list + detail), and
-`rag.*` (`features/rag/data/rag.api.ts`: list/upload/delete). Adding a new
+`rag.*` (`features/rag/data/rag.api.ts`: list/upload/delete), and
+`jobs.root` (`features/jobs/data/jobs.api.ts`, read-only list; `jobs.byId`
+mapped but unused), and `jobMatches.admin`/`jobMatches.adminById`
+(`features/jobs/data/jobMatches.api.ts`, admin cross-user list + detail).
+Adding a new
 call requires adding/confirming the endpoint constant first. See
 `api-integration.md` for the full key list and the client/interceptor/error
 details.

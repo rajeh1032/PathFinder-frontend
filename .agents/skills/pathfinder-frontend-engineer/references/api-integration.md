@@ -103,7 +103,7 @@ route files). All paths are relative to `env.apiBaseUrl` (`/api/v1`) except chat
 | `courses` | `root`, `importPreview`, `importConfirm`, `recommended`, `saved`, `enrollments`, `byId`, `save`, `enroll`, `enrollment` |
 | `interviews` | `careerPaths`, `sessions`, `sessionById`, `sessionQuestions`, `answerQuestion`, `skipQuestion`, `finishSession`, `sessionResult`, `cancelSession`, `adminSessions`, `adminSessionById` |
 | `jobs` | `root`, `matched`, `sync`, `saved`, `applied`, `appliedStatus`, `byId`, `save`, `apply` |
-| `jobMatches` | `root`, `generate`, `byId` |
+| `jobMatches` | `root`, `generate`, `byId`, `admin`, `adminById` |
 | `coverLetters` | `root`, `generate`, `byId`, `versions`, `export` |
 | `chat` | `sessions`, `sendMessage`, `sessionMessages`, `deleteSession` (use `baseUrl: chatApiBaseUrl`) |
 
@@ -111,7 +111,11 @@ Admin-only backend routes (require `authorize('admin')`): `users.activate`,
 `users.deactivate`, `users.byId` (PATCH), `skills.root` (POST), `skills.byId`
 (PATCH/DELETE), `cvs.list`, `cvs.byId`,
 `courses.importPreview`, `courses.importConfirm`, `interviews.adminSessions`,
-`interviews.adminSessionById`.
+`interviews.adminSessionById`, `jobMatches.admin`, `jobMatches.adminById`.
+The job-matches admin read endpoints (`GET /job-matches/admin`,
+`GET /job-matches/admin/:id`) were added to the backend `jobMatches` module and
+join `job_matches -> users!inner -> jobs`; they are consumed by the `jobs`
+feature `jobMatches` data layer.
 The CV admin read endpoints (`GET /cvs`, `GET /cvs/:id`) were added to the
 backend `cvs` module and join `cv_analyses -> cvs -> users`; they are consumed
 by the `cv-analyses` data layer.

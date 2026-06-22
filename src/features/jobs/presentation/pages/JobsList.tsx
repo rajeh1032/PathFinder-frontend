@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react"
-import { Search, Plus, Briefcase, ExternalLink, RefreshCw, Download } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Search, Plus, Briefcase, ExternalLink, RefreshCw, Download, Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
@@ -8,51 +8,56 @@ import { Badge } from "@/shared/components/ui/badge"
 import { Switch } from "@/shared/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { FormModal, DetailsModal, ConfirmDeleteDialog, RowActions, EmptyState, Field, useCrud } from "@/shared/components/crud"
+import { useJobs } from "../../application/useJobs"
+import type { Job, JobStatus } from "../../domain/jobs.types"
 
-type Job = {
-  id: string
+// Form fields editable in the create/edit modal. `required_skills` stays a
+// comma-separated string for the text input and is mapped to/from the backend
+// `string[]` shape.
+type FormState = {
   title: string
   company: string
   location: string
   description: string
-  source: string
-  source_type: "manual" | "api"
   apply_url: string
   required_skills: string
-  employment_type: "Full-time" | "Part-time" | "Contract" | "Internship" | "Freelance"
+  employment_type: string
   salary_range: string
-  status: "active" | "closed" | "expired"
+  status: JobStatus
   is_active: boolean
   posted_at: string
-  created_at: string
 }
 
-const initial: Job[] = [
-  { id: "1", title: "Senior React Developer", company: "TechNova", location: "Remote", description: "Build scalable React apps.", source: "Manual", source_type: "manual", apply_url: "https://technova.com/apply/1", required_skills: "React, TypeScript, Node.js", employment_type: "Full-time", salary_range: "$90,000 – $130,000", status: "active", is_active: true, posted_at: "2026-05-28", created_at: "2026-05-28" },
-  { id: "2", title: "Data Analyst", company: "GlobalData", location: "Cairo, EG", description: "Analyze business data pipelines.", source: "Manual", source_type: "manual", apply_url: "", required_skills: "SQL, Python, Power BI", employment_type: "Full-time", salary_range: "$50,000 – $75,000", status: "active", is_active: true, posted_at: "2026-05-25", created_at: "2026-05-25" },
-  { id: "3", title: "UI/UX Designer", company: "Creative Minds", location: "Dubai, UAE (Remote)", description: "Design beautiful digital products.", source: "JSearch API", source_type: "api", apply_url: "https://creativeminds.io/jobs/3", required_skills: "Figma, User Research", employment_type: "Contract", salary_range: "$60,000 – $90,000", status: "active", is_active: true, posted_at: "2026-05-20", created_at: "2026-05-20" },
-  { id: "4", title: "DevOps Engineer", company: "ServerPro", location: "Riyadh, SA", description: "Maintain CI/CD and cloud infra.", source: "Remotive API", source_type: "api", apply_url: "https://serverpro.com/jobs/4", required_skills: "Docker, Kubernetes, AWS", employment_type: "Full-time", salary_range: "$80,000 – $120,000", status: "active", is_active: true, posted_at: "2026-05-18", created_at: "2026-05-18" },
-  { id: "5", title: "Product Manager", company: "Innovate Inc", location: "Remote", description: "Lead product roadmap execution.", source: "Manual", source_type: "manual", apply_url: "", required_skills: "Agile, Roadmapping, SQL", employment_type: "Full-time", salary_range: "$100,000 – $150,000", status: "closed", is_active: false, posted_at: "2026-04-01", created_at: "2026-04-01" },
-]
-
-type FormState = Omit<Job, "id" | "source" | "source_type" | "created_at">
 const emptyForm: FormState = {
   title: "", company: "", location: "", description: "",
   apply_url: "", required_skills: "", employment_type: "Full-time",
-  salary_range: "", status: "active", is_active: true,
+  salary_range: "", status: "published", is_active: true,
   posted_at: new Date().toISOString().slice(0, 10),
 }
 
 const statusVariant: Record<string, "success" | "secondary" | "warning"> = {
-  active: "success", closed: "secondary", expired: "warning",
+  published: "success", draft: "secondary", archived: "warning",
 }
 
+const fmtDate = (value: string | null) => (value ? value.slice(0, 10) : "—")
+const splitSkills = (value: string) =>
+  value.split(",").map((s) => s.trim()).filter(Boolean)
+
 export function JobsList() {
-  const c = useCrud<Job>(initial)
+  // Real backend data: `GET /api/v1/jobs` (public read, paginated).
+  const { items: fetchedJobs, isLoading, error, refetch } = useJobs()
+
+  // Local CRUD/modal state mirrors the fetched rows. Create/edit/delete/toggle
+  // are in-session only: the backend exposes no admin write endpoint for jobs,
+  // so changes here are not persisted (see jobs.types.ts).
+  const c = useCrud<Job>([])
   const [q, setQ] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [form, setForm] = useState<FormState>(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Sync fetched rows into the local list whenever the backend data changes.
+  useEffect(() => { c.setItems(fetchedJobs) }, [fetchedJobs])
 
   const filtered = useMemo(() => c.items.filter(j => {
     const matchQ = !q || j.title.toLowerCase().includes(q.toLowerCase()) || j.company.toLowerCase().includes(q.toLowerCase())
@@ -62,7 +67,7 @@ export function JobsList() {
 
   const startCreate = () => { setForm(emptyForm); setErrors({}); c.open("create") }
   const startEdit = (j: Job) => {
-    setForm({ title: j.title, company: j.company, location: j.location, description: j.description ?? "", apply_url: j.apply_url, required_skills: j.required_skills, employment_type: j.employment_type, salary_range: j.salary_range, status: j.status, is_active: j.is_active, posted_at: j.posted_at })
+    setForm({ title: j.title, company: j.company, location: j.location ?? "", description: j.description ?? "", apply_url: j.apply_url ?? "", required_skills: j.required_skills.join(", "), employment_type: j.employment_type ?? "Full-time", salary_range: j.salary_range ?? "", status: (j.status as JobStatus) ?? "published", is_active: j.is_active, posted_at: fmtDate(j.posted_at) })
     setErrors({}); c.open("edit", j)
   }
 
@@ -75,11 +80,30 @@ export function JobsList() {
     c.setLoading(true)
     setTimeout(() => {
       if (c.mode === "create") {
-        c.setItems(p => [{ ...form, id: String(Date.now()), source: "Manual", source_type: "manual" as const, created_at: new Date().toISOString().slice(0, 10) }, ...p])
-        toast.success("Job posted")
+        const newJob: Job = {
+          id: String(Date.now()),
+          title: form.title, company: form.company, location: form.location,
+          description: form.description, source: "Manual", source_type: "manual",
+          external_id: null, apply_url: form.apply_url || null,
+          required_skills: splitSkills(form.required_skills),
+          employment_type: form.employment_type || null, salary_range: form.salary_range || null,
+          level: null, category: null, thumbnail_url: null, company_logo_url: null,
+          certificate_provider: null, duration: null, is_active: form.is_active,
+          status: form.status, posted_at: form.posted_at || null,
+          created_at: new Date().toISOString(), updated_at: null,
+        }
+        c.setItems(p => [newJob, ...p])
+        toast.success("Job posted (local only)")
       } else if (c.selected) {
-        c.setItems(p => p.map(j => j.id === c.selected!.id ? { ...j, ...form } : j))
-        toast.success("Job updated")
+        c.setItems(p => p.map(j => j.id === c.selected!.id ? {
+          ...j,
+          title: form.title, company: form.company, location: form.location,
+          description: form.description, apply_url: form.apply_url || null,
+          required_skills: splitSkills(form.required_skills),
+          employment_type: form.employment_type || null, salary_range: form.salary_range || null,
+          status: form.status, is_active: form.is_active, posted_at: form.posted_at || null,
+        } : j))
+        toast.success("Job updated (local only)")
       }
       c.setLoading(false); c.close()
     }, 250)
@@ -89,14 +113,14 @@ export function JobsList() {
     c.setLoading(true)
     setTimeout(() => {
       c.setItems(p => p.filter(x => x.id !== c.selected!.id))
-      c.setLoading(false); c.close(); toast.success("Job deleted")
+      c.setLoading(false); c.close(); toast.success("Job removed (local only)")
     }, 200)
   }
 
   const exportCsv = () => {
     const rows = [
       ["title", "company", "location", "employment_type", "salary_range", "status", "source", "posted_at"],
-      ...c.items.map(j => [j.title, j.company, j.location, j.employment_type, j.salary_range, j.status, j.source, j.posted_at]),
+      ...c.items.map(j => [j.title, j.company, j.location ?? "", j.employment_type ?? "", j.salary_range ?? "", j.status, j.source ?? "", fmtDate(j.posted_at)]),
     ]
     const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n")
     const a = document.createElement("a")
@@ -129,17 +153,31 @@ export function JobsList() {
             value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           >
             <option value="All">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="closed">Closed</option>
-            <option value="expired">Expired</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
           </select>
           <Button variant="outline" size="sm" onClick={() => { setQ(""); setStatusFilter("All") }}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
 
-        {filtered.length === 0 ? (
-          <EmptyState title="No jobs found" description={q || statusFilter !== "All" ? "Try a different search or filter." : "Add your first job listing."} action={!q && statusFilter === "All" && <Button onClick={startCreate}><Plus className="mr-2 h-4 w-4" />Add Job</Button>} />
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+            <Loader2 className="h-7 w-7 animate-spin text-[var(--muted-foreground)] mb-4" />
+            <p className="text-sm text-[var(--muted-foreground)]">Loading jobs...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+            <p className="font-semibold">Couldn't load jobs</p>
+            <p className="text-sm text-[var(--muted-foreground)] mt-1 max-w-sm">{error}</p>
+            <Button variant="outline" className="mt-4" onClick={refetch}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState title="No jobs found" description={q || statusFilter !== "All" ? "Try a different search or filter." : "No job listings are available yet."} action={!q && statusFilter === "All" && <Button onClick={startCreate}><Plus className="mr-2 h-4 w-4" />Add Job</Button>} />
         ) : (
           <Table>
             <TableHeader>
@@ -166,13 +204,13 @@ export function JobsList() {
                     </div>
                   </TableCell>
                   <TableCell>{j.company}</TableCell>
-                  <TableCell className="text-[var(--muted-foreground)] text-sm">{j.location}</TableCell>
-                  <TableCell><Badge variant="secondary">{j.employment_type}</Badge></TableCell>
+                  <TableCell className="text-[var(--muted-foreground)] text-sm">{j.location || "—"}</TableCell>
+                  <TableCell><Badge variant="secondary">{j.employment_type || "—"}</Badge></TableCell>
                   <TableCell className="text-sm text-[var(--muted-foreground)]">{j.salary_range || "—"}</TableCell>
-                  <TableCell><Badge variant={j.source_type === "manual" ? "default" : "outline"} className="text-xs">{j.source}</Badge></TableCell>
+                  <TableCell><Badge variant={j.source_type === "manual" ? "default" : "outline"} className="text-xs">{j.source || "—"}</Badge></TableCell>
                   <TableCell><Badge variant={statusVariant[j.status] ?? "secondary"}>{j.status}</Badge></TableCell>
-                  <TableCell><Switch checked={j.is_active} onCheckedChange={() => { c.setItems(items => items.map(x => x.id === j.id ? { ...x, is_active: !x.is_active } : x)); toast.success(j.is_active ? "Job deactivated" : "Job activated") }} /></TableCell>
-                  <TableCell className="text-xs text-[var(--muted-foreground)]">{j.posted_at}</TableCell>
+                  <TableCell><Switch checked={j.is_active} onCheckedChange={() => { c.setItems(items => items.map(x => x.id === j.id ? { ...x, is_active: !x.is_active } : x)); toast.success(j.is_active ? "Job deactivated (local only)" : "Job activated (local only)") }} /></TableCell>
+                  <TableCell className="text-xs text-[var(--muted-foreground)]">{fmtDate(j.posted_at)}</TableCell>
                   <TableCell>
                     <RowActions
                       onView={() => c.open("view", j)}
@@ -199,13 +237,13 @@ export function JobsList() {
             <Input placeholder="e.g. Remote" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
           </Field>
           <Field label="Employment Type">
-            <select className="w-full h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm" value={form.employment_type} onChange={e => setForm({ ...form, employment_type: e.target.value as Job["employment_type"] })}>
+            <select className="w-full h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm" value={form.employment_type} onChange={e => setForm({ ...form, employment_type: e.target.value })}>
               <option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option><option>Freelance</option>
             </select>
           </Field>
           <Field label="Status">
-            <select className="w-full h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm" value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Job["status"] })}>
-              <option value="active">Active</option><option value="closed">Closed</option><option value="expired">Expired</option>
+            <select className="w-full h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm" value={form.status} onChange={e => setForm({ ...form, status: e.target.value as JobStatus })}>
+              <option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option>
             </select>
           </Field>
         </div>
@@ -240,13 +278,13 @@ export function JobsList() {
                 <Badge variant={c.selected.is_active ? "success" : "outline"}>{c.selected.is_active ? "Active" : "Inactive"}</Badge>
               </div>
             </div>
-            <p className="text-[var(--muted-foreground)]">{c.selected.company} · {c.selected.location}</p>
+            <p className="text-[var(--muted-foreground)]">{c.selected.company} · {c.selected.location || "—"}</p>
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[var(--border)]">
-              <div>Type: <Badge variant="secondary">{c.selected.employment_type}</Badge></div>
-              <div>Source: <Badge variant="outline">{c.selected.source}</Badge></div>
+              <div>Type: <Badge variant="secondary">{c.selected.employment_type || "—"}</Badge></div>
+              <div>Source: <Badge variant="outline">{c.selected.source || "—"}</Badge></div>
               <div>Salary: <span className="font-medium">{c.selected.salary_range || "—"}</span></div>
-              <div>Posted: <span className="font-medium">{c.selected.posted_at}</span></div>
-              {c.selected.required_skills && <div className="col-span-2">Skills: <span className="text-[var(--muted-foreground)]">{c.selected.required_skills}</span></div>}
+              <div>Posted: <span className="font-medium">{fmtDate(c.selected.posted_at)}</span></div>
+              {c.selected.required_skills.length > 0 && <div className="col-span-2">Skills: <span className="text-[var(--muted-foreground)]">{c.selected.required_skills.join(", ")}</span></div>}
             </div>
             {c.selected.description && <p className="pt-2 border-t border-[var(--border)] text-[var(--muted-foreground)]">{c.selected.description}</p>}
             {c.selected.apply_url && (
@@ -258,7 +296,7 @@ export function JobsList() {
         )}
       </DetailsModal>
 
-      <ConfirmDeleteDialog open={c.mode === "delete"} onOpenChange={v => !v && c.close()} title={`Delete "${c.selected?.title}"?`} description="All job matches associated with this listing will also be removed." onConfirm={del} loading={c.loading} />
+      <ConfirmDeleteDialog open={c.mode === "delete"} onOpenChange={v => !v && c.close()} title={`Delete "${c.selected?.title}"?`} description="This removes the job from the list for this session only (no backend delete endpoint exists yet)." onConfirm={del} loading={c.loading} />
     </div>
   )
 }
