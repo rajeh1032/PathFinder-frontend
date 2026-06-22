@@ -31,6 +31,19 @@ export const apiEndpoints = {
   dashboard: {
     overview: "/dashboard/overview",
   },
+  settings: {
+    // Admin-only. `GET /settings` returns the full settings object;
+    // `PUT /settings` upserts a partial object and returns the full object.
+    root: "/settings",
+  },
+  aiLogs: {
+    // Admin-only. `GET /ai-logs` (paginated list), `GET /ai-logs/stats`
+    // (summary cards), `GET /ai-logs/:id` (full prompt/response/payloads),
+    // `DELETE /ai-logs/:id` (remove one), `DELETE /ai-logs` (clear all).
+    root: "/ai-logs",
+    stats: "/ai-logs/stats",
+    byId: (id: string) => `/ai-logs/${id}`,
+  },
   skills: {
     // `GET /skills` (authenticate, paginated) and `POST /skills` (admin).
     root: "/skills",
