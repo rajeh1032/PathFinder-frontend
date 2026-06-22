@@ -1,31 +1,36 @@
-import React from "react"
 import { useNavigate, useParams } from "react-router"
-import { ArrowLeft, Video, Clock, User, MessageSquare, Star } from "lucide-react"
+import { ArrowLeft, Clock, User, MessageSquare, Star, Sparkles, CheckCircle2, SkipForward } from "lucide-react"
 import { Button } from "@/shared/components/ui/button"
 import { Card } from "@/shared/components/ui/card"
 import { Badge } from "@/shared/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
+import { DataState } from "@/shared/components/custom/DataState"
+import { useInterviewDetail } from "../../application/useInterviewDetail"
+import type { InterviewStatus, InterviewType } from "../../domain/interviews.types"
 
-const mock = {
-  id: "INT-1042",
-  user: "Sarah Khan",
-  role: "Frontend Engineer",
-  status: "Completed",
-  startedAt: "2026-05-29 10:14",
-  durationMin: 38,
-  overallScore: 82,
-  scores: { communication: 88, technical: 78, problemSolving: 84, confidence: 80 },
-  questions: [
-    { q: "Tell me about a challenging React performance issue you solved.", a: "I profiled with React DevTools and memoized expensive subtrees...", score: 84 },
-    { q: "Explain the difference between useMemo and useCallback.", a: "useMemo memoizes a value, useCallback memoizes a function reference...", score: 90 },
-    { q: "How would you architect a real-time dashboard?", a: "I'd use websockets with a normalized store and selective subscriptions...", score: 76 },
-  ],
-  feedback: "Strong technical grasp and clear communication. Improve depth on system design tradeoffs.",
+const STATUS_LABELS: Record<InterviewStatus, string> = {
+  started: "Started",
+  in_progress: "In Progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
 }
+
+const TYPE_LABELS: Record<InterviewType, string> = {
+  technical: "Technical",
+  behavioral: "Behavioral",
+  mock_hr: "Mock HR",
+}
+
+const statusVariant = (status: InterviewStatus) =>
+  status === "completed" ? "success" : status === "cancelled" ? "destructive" : "warning"
+
+const questionStatusVariant = (status: string | null) =>
+  status === "passed" ? "success" : status === "skipped" ? "secondary" : status === "needs_improvement" ? "warning" : "outline"
 
 export function InterviewDetails() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { interview, isLoading, error, refetch } = useInterviewDetail(id)
 
   return (
     <div className="space-y-6">
@@ -35,93 +40,128 @@ export function InterviewDetails() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Interview {id ?? mock.id}</h1>
-            <Badge>{mock.status}</Badge>
+            <h1 className="text-2xl font-bold">Interview Session</h1>
+            {interview && <Badge variant={statusVariant(interview.status)}>{STATUS_LABELS[interview.status]}</Badge>}
           </div>
-          <p className="text-[var(--muted-foreground)]">{mock.role} • {mock.startedAt}</p>
+          <p className="text-[var(--muted-foreground)]">
+            {interview ? `${TYPE_LABELS[interview.type]} • ${interview.careerPath} • ${interview.startedAt}` : "Loading session details..."}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 flex items-center gap-3">
-          <User className="w-5 h-5 text-[var(--primary)]" />
-          <div>
-            <p className="text-xs text-[var(--muted-foreground)]">Candidate</p>
-            <p className="font-medium">{mock.user}</p>
-          </div>
-        </Card>
-        <Card className="p-4 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-[var(--primary)]" />
-          <div>
-            <p className="text-xs text-[var(--muted-foreground)]">Duration</p>
-            <p className="font-medium">{mock.durationMin} min</p>
-          </div>
-        </Card>
-        <Card className="p-4 flex items-center gap-3">
-          <MessageSquare className="w-5 h-5 text-[var(--primary)]" />
-          <div>
-            <p className="text-xs text-[var(--muted-foreground)]">Questions</p>
-            <p className="font-medium">{mock.questions.length}</p>
-          </div>
-        </Card>
-        <Card className="p-4 flex items-center gap-3">
-          <Star className="w-5 h-5 text-[var(--primary)]" />
-          <div>
-            <p className="text-xs text-[var(--muted-foreground)]">Overall Score</p>
-            <p className="font-medium">{mock.overallScore}/100</p>
-          </div>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="qa">
-        <TabsList>
-          <TabsTrigger value="qa">Q&A</TabsTrigger>
-          <TabsTrigger value="scores">Scores</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
-          <TabsTrigger value="recording">Recording</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="qa" className="space-y-3">
-          {mock.questions.map((item, i) => (
-            <Card key={i} className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="font-medium">Q{i + 1}. {item.q}</p>
-                <Badge variant="secondary">{item.score}/100</Badge>
-              </div>
-              <p className="text-sm text-[var(--muted-foreground)]">{item.a}</p>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="scores">
-          <Card className="p-6 space-y-4">
-            {Object.entries(mock.scores).map(([k, v]) => (
-              <div key={k}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="capitalize">{k.replace(/([A-Z])/g, " $1")}</span>
-                  <span>{v}/100</span>
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={refetch}
+        loadingLabel="Loading interview session..."
+      >
+        {interview && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="p-4 flex items-center gap-3">
+                <User className="w-5 h-5 text-[var(--primary)]" />
+                <div className="min-w-0">
+                  <p className="text-xs text-[var(--muted-foreground)]">Candidate</p>
+                  <p className="font-medium truncate">{interview.userName}</p>
+                  <p className="text-xs text-[var(--muted-foreground)] truncate">{interview.userEmail}</p>
                 </div>
-                <div className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
-                  <div className="h-full bg-[var(--primary)]" style={{ width: `${v}%` }} />
+              </Card>
+              <Card className="p-4 flex items-center gap-3">
+                <Clock className="w-5 h-5 text-[var(--primary)]" />
+                <div>
+                  <p className="text-xs text-[var(--muted-foreground)]">Duration</p>
+                  <p className="font-medium">{interview.durationLabel ?? "—"}</p>
                 </div>
-              </div>
-            ))}
-          </Card>
-        </TabsContent>
+              </Card>
+              <Card className="p-4 flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-[var(--primary)]" />
+                <div>
+                  <p className="text-xs text-[var(--muted-foreground)]">Questions</p>
+                  <p className="font-medium">{interview.totalQuestions}</p>
+                </div>
+              </Card>
+              <Card className="p-4 flex items-center gap-3">
+                <Star className="w-5 h-5 text-[var(--primary)]" />
+                <div>
+                  <p className="text-xs text-[var(--muted-foreground)]">Overall Score</p>
+                  <p className="font-medium">{interview.overallScore === null ? "—" : `${interview.overallScore}/100`}</p>
+                </div>
+              </Card>
+            </div>
 
-        <TabsContent value="feedback">
-          <Card className="p-6">
-            <p className="text-sm leading-relaxed">{mock.feedback}</p>
-          </Card>
-        </TabsContent>
+            <Tabs defaultValue="qa">
+              <TabsList>
+                <TabsTrigger value="qa">Q&amp;A</TabsTrigger>
+                <TabsTrigger value="insight">AI Insight</TabsTrigger>
+              </TabsList>
 
-        <TabsContent value="recording">
-          <Card className="p-10 flex flex-col items-center justify-center text-center text-[var(--muted-foreground)]">
-            <Video className="w-10 h-10 mb-3" />
-            <p>Recording playback unavailable in this demo.</p>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="qa" className="space-y-3">
+                {interview.questions.length === 0 ? (
+                  <Card className="p-10 text-center text-[var(--muted-foreground)]">
+                    <p>No questions recorded for this session.</p>
+                  </Card>
+                ) : (
+                  interview.questions.map((q) => (
+                    <Card key={q.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-medium">Q{q.order}. {q.question}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {q.status && <Badge variant={questionStatusVariant(q.status)}>{q.status.replace(/_/g, " ")}</Badge>}
+                          {q.score !== null && <Badge variant="secondary">{q.score}/100</Badge>}
+                        </div>
+                      </div>
+
+                      {q.options.length > 0 && (
+                        <ul className="space-y-1 text-sm">
+                          {q.options.map((option, i) => {
+                            const isAnswer = q.userAnswer !== null && option === q.userAnswer
+                            return (
+                              <li
+                                key={i}
+                                className={`flex items-center gap-2 ${isAnswer ? "font-medium text-[var(--foreground)]" : "text-[var(--muted-foreground)]"}`}
+                              >
+                                {isAnswer ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> : <span className="h-3.5 w-3.5 shrink-0" />}
+                                {option}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+
+                      {q.isSkipped && (
+                        <p className="flex items-center gap-1.5 text-sm text-amber-600">
+                          <SkipForward className="h-3.5 w-3.5" /> Skipped by candidate
+                        </p>
+                      )}
+
+                      {q.feedback && (
+                        <p className="text-sm text-[var(--muted-foreground)]">{q.feedback}</p>
+                      )}
+
+                      {q.aiSuggestion && (
+                        <div className="flex gap-2 rounded-lg bg-[var(--muted)] p-3">
+                          <Sparkles className="h-4 w-4 text-[var(--primary)] mt-0.5 shrink-0" />
+                          <p className="text-sm">{q.aiSuggestion}</p>
+                        </div>
+                      )}
+                    </Card>
+                  ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="insight">
+                <Card className="p-6">
+                  {interview.insight ? (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{interview.insight}</p>
+                  ) : (
+                    <p className="text-sm text-[var(--muted-foreground)]">No AI insight recorded for this session.</p>
+                  )}
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
+      </DataState>
     </div>
   )
 }
