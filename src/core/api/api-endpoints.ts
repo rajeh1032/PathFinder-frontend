@@ -114,6 +114,11 @@ export const apiEndpoints = {
     root: "/job-matches",
     generate: "/job-matches/generate",
     byId: (id: string) => `/job-matches/${id}`,
+    // Admin-only (require `authorize('admin')`): cross-user matches joined with
+    // the owning user. `GET /job-matches/admin` returns the matches array +
+    // `meta.pagination`; `GET /job-matches/admin/:id` returns one match.
+    admin: "/job-matches/admin",
+    adminById: (id: string) => `/job-matches/admin/${id}`,
   },
   coverLetters: {
     root: "/cover-letters",

@@ -11,7 +11,7 @@
 | RAG documents | `/api/v1/rag` | UI currently demo-backed |
 | roadmaps | `/api/v1/roadmaps` | UI currently demo-backed |
 | courses | `/api/v1/courses` | Full admin management: read (list + detail), create via import wizard (preview/AI analysis/confirm), edit (`PATCH /:id`), delete (`DELETE /:id`) |
-| jobs | `/api/v1/jobs`, `/api/v1/job-matches` | UI currently demo-backed |
+| jobs | `/api/v1/jobs`, `/api/v1/job-matches` | `JobsList` read wired to real `GET /jobs` (public, paginated). No admin write endpoint exists, so create/edit/delete/toggle are local only. `JobMatches` wired to a new admin cross-user endpoint `GET /job-matches/admin` (+ `/admin/:id`, admin-gated, joins users + jobs) added to the backend `jobMatches` module; shows every user's matches. Notify/remove are local only |
 | interviews | `/api/v1/interviews` | UI currently demo-backed |
 | cover letters | `/api/v1/cover-letters` | UI exists but is not routed yet |
 | AI/admin analytics/settings | not consistently exposed | Do not fabricate endpoints |
