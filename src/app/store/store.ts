@@ -7,6 +7,7 @@ import { ragReducer } from "@/features/rag/application/rag.slice"
 import { cvAnalysesReducer } from "@/features/cv-analyses/application/cv-analyses.slice"
 import { coursesReducer } from "@/features/courses/application/courses.slice"
 import { skillsReducer } from "@/features/skills/application/skills.slice"
+import { interviewsReducer } from "@/features/interviews/application/interviews.slice"
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     cvAnalyses: cvAnalysesReducer,
     courses: coursesReducer,
     skills: skillsReducer,
+    interviews: interviewsReducer,
   },
 })
 
