@@ -23,7 +23,7 @@ export function AdminLogin() {
     setLoading(true)
     try {
       await login({ email, password }, remember)
-      navigate("/", { replace: true })
+      navigate("/welcome", { replace: true })
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Sign in failed")
     } finally {
