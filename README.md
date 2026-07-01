@@ -5,7 +5,10 @@ A modern and scalable **React + TypeScript** admin dashboard built for the **Pat
 > Built with maintainability, scalability, and developer experience in mind.
 
 ---
+## 🎥 Live Demo
 
+> 📺 **Project Walkthrough Video:**  
+> https://drive.google.com/file/d/1gFEkoHO9f9PNpoJmuJy2oAzybiZVBdW-/view?usp=sharing
 ## ✨ Overview
 
 PathFinder AI Admin Dashboard is the administrative portal of the PathFinder AI ecosystem. It communicates with the Node.js/Express backend through REST APIs and provides administrators with complete control over the platform.
@@ -242,7 +245,4 @@ Before making architectural changes, read:
 
 Admin Dashboard built using **React + TypeScript** following modern software architecture principles.
 
-## 🎥 Live Demo
 
-> 📺 **Project Walkthrough Video:**  
-> https://drive.google.com/file/d/1gFEkoHO9f9PNpoJmuJy2oAzybiZVBdW-/view?usp=sharing
