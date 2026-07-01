@@ -25,6 +25,9 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 ### Career Path
 
 ![Career Path](src/careerPath.png)
+### Users
+
+![AI Logs](src/users.png)
 
 ### Courses
 
