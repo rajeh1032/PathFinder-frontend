@@ -241,3 +241,8 @@ Before making architectural changes, read:
 **PathFinder AI Graduation Project**
 
 Admin Dashboard built using **React + TypeScript** following modern software architecture principles.
+
+## 🎥 Live Demo
+
+> 📺 **Project Walkthrough Video:**  
+> https://drive.google.com/file/d/1gFEkoHO9f9PNpoJmuJy2oAzybiZVBdW-/view?usp=sharing
