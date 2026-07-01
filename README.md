@@ -18,15 +18,21 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 ---
 ## 📸 Screenshots
 
-<p align="center">
-  <img src="screenshots/dashboard.png" width="45%">
-  <img src="screenshots/users.png" width="45%">
-</p>
+### AI Logs
 
-<p align="center">
-  <img src="screenshots/login.png" width="45%">
-  <img src="screenshots/settings.png" width="45%">
-</p>
+![AI Logs](src/aiLogs.png)
+
+### Career Path
+
+![Career Path](src/careerPath.png)
+
+### Courses
+
+![Courses](src/courses.png)
+
+### Rag Document
+
+![RAG Document](src/RagDoc.png)
 
 ## 🌟 Features
 
