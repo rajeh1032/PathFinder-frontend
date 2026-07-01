@@ -17,6 +17,13 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 
 ---
 ## 📸 Screenshots
+### Over View
+
+![Over View](src/overView.png)
+
+### Interview Session
+
+![Interview Session](src/interviewSession.png)
 
 ### AI Logs
 
