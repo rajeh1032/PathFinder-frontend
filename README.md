@@ -29,6 +29,36 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 
 ![AI Logs](src/aiLogs.png)
 
+### Skills
+![Career Path](src/skills.png)
+
+### CV Anaylsis
+
+![AI Logs](src/cvAnaylsis.png)
+
+### Jobs Matchs
+
+![Career Path](src/jobMatchs.png)
+
+### Courses
+
+![Courses](src/courses.png)
+
+### Rag Document
+
+![RAG Document](src/RagDoc.png)
+### Courses
+
+![Courses](src/courses.png)
+
+### Rag Document
+
+![RAG Document](src/RagDoc.png)
+
+### AI Logs
+
+![AI Logs](src/aiLogs.png)
+
 ### Career Path
 
 ![Career Path](src/careerPath.png)
