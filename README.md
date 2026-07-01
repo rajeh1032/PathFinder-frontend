@@ -38,8 +38,11 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 
 ### Jobs Matchs
 
-![Career Path](src/jobMatchs.png)
+![Jobs Matchs](src/jobMatchs.png)
 
+### Jobs
+
+![Jobs](src/jobs.png)
 ### Courses
 
 ![Courses](src/courses.png)
@@ -47,17 +50,6 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 ### Rag Document
 
 ![RAG Document](src/RagDoc.png)
-### Courses
-
-![Courses](src/courses.png)
-
-### Rag Document
-
-![RAG Document](src/RagDoc.png)
-
-### AI Logs
-
-![AI Logs](src/aiLogs.png)
 
 ### Career Path
 
@@ -65,10 +57,6 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 ### Users
 
 ![AI Logs](src/users.png)
-
-### Courses
-
-![Courses](src/courses.png)
 
 ### Rag Document
 
