@@ -16,6 +16,17 @@ PathFinder AI Admin Dashboard is the administrative portal of the PathFinder AI 
 The project follows a **Feature-First Clean Architecture**, making every feature independent, testable, and easy to extend.
 
 ---
+## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshots/dashboard.png" width="45%">
+  <img src="screenshots/users.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="screenshots/login.png" width="45%">
+  <img src="screenshots/settings.png" width="45%">
+</p>
 
 ## 🌟 Features
 
