@@ -17,50 +17,72 @@ The project follows a **Feature-First Clean Architecture**, making every feature
 
 ---
 ## 📸 Screenshots
-### Over View
 
-![Over View](src/overView.png)
+<table>
+<tr>
+<td align="center">
+<b>Overview</b><br>
+<img src="src/overView.png" width="450"/>
+</td>
+<td align="center">
+<b>Interview Session</b><br>
+<img src="src/interviewSession.png" width="450"/>
+</td>
+</tr>
 
-### Interview Session
+<tr>
+<td align="center">
+<b>AI Logs</b><br>
+<img src="src/aiLogs.png" width="450"/>
+</td>
+<td align="center">
+<b>Skills</b><br>
+<img src="src/skills.png" width="450"/>
+</td>
+</tr>
 
-![Interview Session](src/interviewSession.png)
+<tr>
+<td align="center">
+<b>CV Analysis</b><br>
+<img src="src/cvAnaylsis.png" width="450"/>
+</td>
+<td align="center">
+<b>Jobs Matches</b><br>
+<img src="src/jobMatchs.png" width="450"/>
+</td>
+</tr>
 
-### AI Logs
+<tr>
+<td align="center">
+<b>Jobs</b><br>
+<img src="src/jobs.png" width="450"/>
+</td>
+<td align="center">
+<b>Courses</b><br>
+<img src="src/courses.png" width="450"/>
+</td>
+</tr>
 
-![AI Logs](src/aiLogs.png)
+<tr>
+<td align="center">
+<b>RAG Document</b><br>
+<img src="src/RagDoc.png" width="450"/>
+</td>
+<td align="center">
+<b>Career Path</b><br>
+<img src="src/careerPath.png" width="450"/>
+</td>
+</tr>
 
-### Skills
-![Career Path](src/skills.png)
-
-### CV Anaylsis
-
-![AI Logs](src/cvAnaylsis.png)
-
-### Jobs Matchs
-
-![Jobs Matchs](src/jobMatchs.png)
-
-### Jobs
-
-![Jobs](src/jobs.png)
-### Courses
-
-![Courses](src/courses.png)
-
-### Rag Document
-
-![RAG Document](src/RagDoc.png)
-
-### Career Path
-
-![Career Path](src/careerPath.png)
-### Users
-
-![AI Logs](src/users.png)
-
-### Rag Document
-
-![RAG Document](src/RagDoc.png)
+<tr>
+<td align="center">
+<b>Users</b><br>
+<img src="src/users.png" width="450"/>
+</td>
+<td align="center">
+</td>
+</tr>
+</table>
 
 ## 🌟 Features
 
